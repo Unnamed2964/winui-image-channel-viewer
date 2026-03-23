@@ -55,11 +55,51 @@
 2. 选择 Debug | x64 或 Release | x64
 3. 直接生成并运行
 
+构建前会自动执行版本生成脚本：
+
+- 从 Git tag 或提交信息推导显示版本号
+- 自动更新 app.manifest 中的清单版本
+- 自动生成供应用读取的版本头文件
+
+请参见 [Git 版本号、自动写入与自动发布方案记录](./docs/git-versioning-and-release-notes.md) 中的 GPT 问答记录
+
 也可以通过 MSBuild 构建：
 
 ```powershell
 & "C:\Program Files\Microsoft Visual Studio\18\Professional\MSBuild\Current\Bin\MSBuild.exe" ".\image_channel_viewer.sln" /restore /t:Build /p:Configuration=Release /p:Platform=x64
 ```
+
+## 版本号与发布
+
+项目使用 Git tag 作为发布版本来源，建议采用语义化版本号：
+
+- v1.0.0
+- v1.0.1
+- v1.1.0
+- v2.0.0
+
+发布一个正式版本的基本流程：
+
+```powershell
+git tag -a v1.0.0 -m "Release v1.0.0"
+git push origin v1.0.0
+```
+
+版本生成脚本会把：
+
+- Git 版本 v1.2.3 映射成清单版本 1.2.3.0
+- About 对话框显示版本写成 v1.2.3
+
+如果当前提交不在正式 tag 上，脚本会生成 dev 版本，例如：
+
+- v1.2.3-dev+4.gabc1234
+- 0.0.0-dev+abc1234
+
+仓库包含一个 GitHub Actions 发布工作流：
+
+- 当推送 vX.Y.Z tag 时自动构建 Release | x64
+- 自动打包 x64/Release/image_channel_viewer
+- 自动创建 GitHub Release 并上传 zip 资产
 
 ## 附注
 

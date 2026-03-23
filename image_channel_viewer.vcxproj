@@ -145,6 +145,10 @@
     </Midl>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Target Name="GenerateVersionInfo" BeforeTargets="PrepareForBuild">
+    <Message Text="Running GenerateVersionInfo" Importance="high" />
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(ProjectDir)scripts\update-version.ps1&quot; -ProjectRoot &quot;$(ProjectDir)&quot;" WorkingDirectory="$(ProjectDir)" />
+  </Target>
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
 </Project>

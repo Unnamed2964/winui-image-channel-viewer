@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "MainWindow.xaml.h"
+#include "AppVersion.g.h"
 
 #if __has_include("MainWindow.g.cpp")
 #include "MainWindow.g.cpp"
@@ -10,8 +11,6 @@ using namespace Microsoft::UI::Xaml;
 
 namespace
 {
-    constexpr std::wstring_view AppVersion = L"1.0.0.0";
-
     struct __declspec(uuid("905a0fef-bc53-11df-8c49-001e4fc686da")) IBufferByteAccess : ::IUnknown
     {
         virtual HRESULT __stdcall Buffer(uint8_t** value) = 0;
