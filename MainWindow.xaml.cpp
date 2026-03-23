@@ -315,17 +315,17 @@ namespace winrt::image_channel_viewer::implementation
         Populatechannels();
     }
 
-    void MainWindow::OnOpenImageClick(IInspectable const& sender, RoutedEventArgs const& args)
+    void MainWindow::OnOpenImageClick(
+        [[maybe_unused]] IInspectable const& sender, 
+        [[maybe_unused]] RoutedEventArgs const& args)
     {
-        (void)sender;
-        (void)args;
         LoadImageAsync();
     }
 
-    void MainWindow::OnColorModeItemClick(IInspectable const& sender, RoutedEventArgs const& args)
+    void MainWindow::OnColorModeItemClick(
+        [[maybe_unused]] IInspectable const& sender, 
+        [[maybe_unused]] RoutedEventArgs const& args)
     {
-        (void)sender;
-        (void)args;
         if (m_isUpdatingUi)
         {
             return;
@@ -343,10 +343,10 @@ namespace winrt::image_channel_viewer::implementation
         RefreshPreview();
     }
 
-    void MainWindow::OnchannelItemClick(IInspectable const& sender, RoutedEventArgs const& args)
+    void MainWindow::OnchannelItemClick(
+        [[maybe_unused]] IInspectable const& sender, 
+        [[maybe_unused]] RoutedEventArgs const& args)
     {
-        (void)sender;
-        (void)args;
         if (m_isUpdatingUi)
         {
             return;
@@ -363,21 +363,20 @@ namespace winrt::image_channel_viewer::implementation
         RefreshPreview();
     }
 
-    void MainWindow::OnGrayscaleToggled(IInspectable const& sender, RoutedEventArgs const& args)
+    void MainWindow::OnGrayscaleToggled(
+        [[maybe_unused]] IInspectable const& sender, 
+        [[maybe_unused]] RoutedEventArgs const& args)
     {
-        (void)sender;
-        (void)args;
         if (!m_isUpdatingUi)
         {
             RefreshPreview();
         }
     }
 
-    void MainWindow::OnPreviewViewChanged(IInspectable const& sender, Controls::ScrollViewerViewChangedEventArgs const& args)
+    void MainWindow::OnPreviewViewChanged(
+        [[maybe_unused]] IInspectable const& sender, 
+        [[maybe_unused]] Controls::ScrollViewerViewChangedEventArgs const& args)
     {
-        (void)sender;
-        (void)args;
-
         m_savedHorizontalOffset = PreviewScrollViewer().HorizontalOffset();
         m_savedVerticalOffset = PreviewScrollViewer().VerticalOffset();
         m_savedZoomFactor = PreviewScrollViewer().ZoomFactor();
@@ -426,7 +425,6 @@ namespace winrt::image_channel_viewer::implementation
         uint8_t* sourceData = nullptr;
         uint32_t capacity = 0;
         check_hresult(byteAccess->GetBuffer(&sourceData, &capacity));
-        (void)capacity;
 
         const auto plane = buffer.GetPlaneDescription(0);
         m_stride = static_cast<uint32_t>(plane.Stride);

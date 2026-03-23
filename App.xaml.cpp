@@ -14,8 +14,7 @@ namespace winrt::image_channel_viewer::implementation
         {
             if (IsDebuggerPresent())
             {
-                auto message = eventArgs.Message();
-                (void)message;
+                [[maybe_unused]] auto message = eventArgs.Message();
                 __debugbreak();
             }
         });
@@ -24,7 +23,6 @@ namespace winrt::image_channel_viewer::implementation
 
     void App::OnLaunched([[maybe_unused]] LaunchActivatedEventArgs const& launchArgs)
     {
-        (void)launchArgs;
         m_window = make<MainWindow>();
         m_window.Activate();
     }
