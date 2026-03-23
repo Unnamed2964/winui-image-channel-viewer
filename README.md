@@ -2,7 +2,7 @@
 
 ## 简介
 
-本项目是一个基于 Modern C++ (>= C++20) + C++/WinRT + WinUI 3 的图片通道查看器，现代 Windows 11 风格的桌面应用。
+本项目是一个基于 Modern C++ (>= C++20) + C++/WinRT + WinUI 3 的图片通道查看器，现代 Windows 11 风格，采用 Mica 效果的桌面应用。
 
 ## 运行截图
 
