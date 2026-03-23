@@ -94,6 +94,26 @@
                         VerticalAlignment="Center" />
                 </ScrollViewer>
 
+                <Border
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Top"
+                    Background="{ThemeResource LayerFillColorDefaultBrush}"
+                    Visibility="Collapsed"
+                    x:Name="PreviewProgressHost">
+                    <ProgressBar
+                        x:Name="PreviewProgressBar"
+                        Grid.Column="0"
+                        Height="6"
+                        Minimum="0"
+                        Maximum="100"
+                        Value="0"
+                        IsIndeterminate="False"
+                        ShowPaused="False"
+                        ShowError="False"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Center" />
+                </Border>
+
                 <StackPanel
                     x:Name="EmptyStatePanel"
                     Spacing="12"

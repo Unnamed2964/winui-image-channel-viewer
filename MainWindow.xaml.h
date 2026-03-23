@@ -36,7 +36,7 @@ namespace winrt::image_channel_viewer::implementation
         winrt::Windows::Foundation::IAsyncAction LoadImageAsync();
         void InitializeModes();
         void Populatechannels();
-        void RefreshPreview();
+        winrt::fire_and_forget RefreshPreview();
         std::optional<ColorMode> SelectedMode();
         std::optional<uint32_t> SelectedchannelIndex();
         float ComputeFitZoomFactor();
@@ -55,6 +55,7 @@ namespace winrt::image_channel_viewer::implementation
         double m_savedHorizontalOffset{ 0.0 };
         double m_savedVerticalOffset{ 0.0 };
         float m_savedZoomFactor{ 1.0f };
+        uint64_t m_previewRequestId{ 0 };
         bool m_fitPreviewOnNextRefresh{ false };
         bool m_isUpdatingUi{ false };
     };

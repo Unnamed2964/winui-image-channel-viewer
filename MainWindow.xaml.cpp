@@ -504,178 +504,251 @@ namespace winrt::image_channel_viewer::implementation
         m_isUpdatingUi = false;
     }
 
-    void MainWindow::RefreshPreview()
+    winrt::fire_and_forget MainWindow::RefreshPreview()
     {
-        if (m_sourcePixels.empty() || m_pixelWidth == 0 || m_pixelHeight == 0)
-        {
-            PreviewImage().Source(nullptr);
-            EmptyStatePanel().Visibility(Visibility::Visible);
-            return;
-        }
+        auto lifetime = get_strong();
+        auto uiThread = winrt::apartment_context();
+        auto dispatcherQueue = DispatcherQueue();
+        uint64_t requestId = 0;
 
-        const auto selectedMode = SelectedMode().value_or(ColorMode::Original);
-        const auto channelIndex = SelectedchannelIndex().value_or(0);
-        const bool showGrayscale = GrayscaleToggle().IsOn();
-
-        std::vector<uint8_t> previewPixels(m_stride * m_pixelHeight);
-        for (uint32_t row = 0; row < m_pixelHeight; ++row)
+        try
         {
-            for (uint32_t column = 0; column < m_pixelWidth; ++column)
+            // Not in background thread yet, so we can safely access member variables without locks.
+            requestId = ++m_previewRequestId;
+            PreviewProgressBar().Value(0.0);
+            PreviewProgressHost().Visibility(Visibility::Visible);
+
+            if (m_sourcePixels.empty() || m_pixelWidth == 0 || m_pixelHeight == 0)
             {
-                const uint32_t offset = row * m_stride + column * 4;
-                const uint8_t blue = m_sourcePixels[offset + 0];
-                const uint8_t green = m_sourcePixels[offset + 1];
-                const uint8_t red = m_sourcePixels[offset + 2];
-                const uint8_t alpha = m_sourcePixels[offset + 3];
+                PreviewProgressHost().Visibility(Visibility::Collapsed);
+                PreviewImage().Source(nullptr);
+                EmptyStatePanel().Visibility(Visibility::Visible);
+                co_return;
+            }
 
-                const PixelF pixel{
-                    red / 255.0,
-                    green / 255.0,
-                    blue / 255.0,
-                };
+            const auto selectedMode = SelectedMode().value_or(ColorMode::Original);
+            const auto channelIndex = SelectedchannelIndex().value_or(0);
+            const bool showGrayscale = GrayscaleToggle().IsOn();
+            const uint32_t pixelWidth = m_pixelWidth;
+            const uint32_t pixelHeight = m_pixelHeight;
+            const uint32_t stride = m_stride;
+            const auto selectedModeIndex = m_selectedModeIndex;
+            const auto selectedChannelIndex = m_selectedChannelIndex;
+            const auto definition = m_modes.at(selectedModeIndex);
+            const auto channelLabel = definition.channels.at(std::min<uint32_t>(selectedChannelIndex, static_cast<uint32_t>(definition.channels.size() - 1)));
+            const auto loadedFileName = m_loadedFileName;
+            auto sourcePixels = m_sourcePixels;
 
-                std::array<uint8_t, 4> mappedPixel{};
-                switch (selectedMode)
+            // resume_background schedules the coroutine continuation 
+            // on a thread-pool thread. Unlike JavaScript await, this 
+            // await point changes the execution context, so the code 
+            // below no longer runs on the UI thread.
+            co_await winrt::resume_background();
+
+            std::vector<uint8_t> previewPixels(stride * pixelHeight);
+            uint32_t lastReportedProgress = 0;
+            for (uint32_t row = 0; row < pixelHeight; ++row)
+            {
+                for (uint32_t column = 0; column < pixelWidth; ++column)
                 {
-                case ColorMode::Original:
-                    mappedPixel = { blue, green, red, alpha };
-                    break;
+                    const uint32_t offset = row * stride + column * 4;
+                    const uint8_t blue = sourcePixels[offset + 0];
+                    const uint8_t green = sourcePixels[offset + 1];
+                    const uint8_t red = sourcePixels[offset + 2];
+                    const uint8_t alpha = sourcePixels[offset + 3];
 
-                case ColorMode::RGB:
-                {
-                    const double channelValue = channelIndex == 0 ? pixel.r : (channelIndex == 1 ? pixel.g : pixel.b);
-                    if (showGrayscale)
+                    const PixelF pixel{
+                        red / 255.0,
+                        green / 255.0,
+                        blue / 255.0,
+                    };
+
+                    std::array<uint8_t, 4> mappedPixel{};
+                    switch (selectedMode)
                     {
-                        mappedPixel = ComposePixel(channelValue, channelValue, channelValue, alpha);
-                    }
-                    else
+                    case ColorMode::Original:
+                        mappedPixel = { blue, green, red, alpha };
+                        break;
+
+                    case ColorMode::RGB:
                     {
-                        mappedPixel = ComposePixel(
-                            channelIndex == 0 ? channelValue : 0.0,
-                            channelIndex == 1 ? channelValue : 0.0,
-                            channelIndex == 2 ? channelValue : 0.0,
-                            alpha);
+                        const double channelValue = channelIndex == 0 ? pixel.r : (channelIndex == 1 ? pixel.g : pixel.b);
+                        if (showGrayscale)
+                        {
+                            mappedPixel = ComposePixel(channelValue, channelValue, channelValue, alpha);
+                        }
+                        else
+                        {
+                            mappedPixel = ComposePixel(
+                                channelIndex == 0 ? channelValue : 0.0,
+                                channelIndex == 1 ? channelValue : 0.0,
+                                channelIndex == 2 ? channelValue : 0.0,
+                                alpha);
+                        }
+                        break;
                     }
-                    break;
+
+                    case ColorMode::HSL:
+                    {
+                        const auto hsl = RgbToHsl(pixel);
+                        if (channelIndex == 0)
+                        {
+                            const auto huePixel = HslToRgb(hsl.h, 1.0, 0.5);
+                            mappedPixel = ComposePixel(huePixel.r, huePixel.g, huePixel.b, alpha);
+                        }
+                        else if (channelIndex == 1)
+                        {
+                            mappedPixel = ComposePixel(hsl.s, hsl.s, hsl.s, alpha);
+                        }
+                        else
+                        {
+                            mappedPixel = ComposePixel(hsl.l, hsl.l, hsl.l, alpha);
+                        }
+                        break;
+                    }
+
+                    case ColorMode::HSV:
+                    {
+                        const auto hsv = RgbToHsv(pixel);
+                        if (channelIndex == 0)
+                        {
+                            const auto huePixel = HsvToRgb(hsv.h, 1.0, 1.0);
+                            mappedPixel = ComposePixel(huePixel.r, huePixel.g, huePixel.b, alpha);
+                        }
+                        else if (channelIndex == 1)
+                        {
+                            mappedPixel = ComposePixel(hsv.s, hsv.s, hsv.s, alpha);
+                        }
+                        else
+                        {
+                            mappedPixel = ComposePixel(hsv.v, hsv.v, hsv.v, alpha);
+                        }
+                        break;
+                    }
+
+                    case ColorMode::CMYK:
+                    {
+                        const auto cmyk = RgbToCmyk(pixel);
+                        const double channelValue = channelIndex == 0 ? cmyk.c : (channelIndex == 1 ? cmyk.m : (channelIndex == 2 ? cmyk.y : cmyk.k));
+                        if (showGrayscale || channelIndex == 3)
+                        {
+                            mappedPixel = ComposePixel(channelValue, channelValue, channelValue, alpha);
+                        }
+                        else if (channelIndex == 0)
+                        {
+                            mappedPixel = ComposePixel(0.0, channelValue, channelValue, alpha);
+                        }
+                        else if (channelIndex == 1)
+                        {
+                            mappedPixel = ComposePixel(channelValue, 0.0, channelValue, alpha);
+                        }
+                        else
+                        {
+                            mappedPixel = ComposePixel(channelValue, channelValue, 0.0, alpha);
+                        }
+                        break;
+                    }
+
+                    case ColorMode::LAB:
+                    {
+                        const auto lab = RgbToLab(pixel);
+                        if (channelIndex == 0)
+                        {
+                            const double lightness = Clamp01(lab.l / 100.0);
+                            mappedPixel = ComposePixel(lightness, lightness, lightness, alpha);
+                        }
+                        else if (channelIndex == 1)
+                        {
+                            const double value = Clamp01((lab.a + 128.0) / 255.0);
+                            mappedPixel = ComposePixel(value, value, value, alpha);
+                        }
+                        else
+                        {
+                            const double value = Clamp01((lab.b + 128.0) / 255.0);
+                            mappedPixel = ComposePixel(value, value, value, alpha);
+                        }
+                        break;
+                    }
+                    }
+
+                    previewPixels[offset + 0] = mappedPixel[0];
+                    previewPixels[offset + 1] = mappedPixel[1];
+                    previewPixels[offset + 2] = mappedPixel[2];
+                    previewPixels[offset + 3] = mappedPixel[3];
                 }
 
-                case ColorMode::HSL:
+                const uint32_t progress = ((row + 1) * 100) / pixelHeight;
+                if (progress != lastReportedProgress)
                 {
-                    const auto hsl = RgbToHsl(pixel);
-                    if (channelIndex == 0)
-                    {
-                        const auto huePixel = HslToRgb(hsl.h, 1.0, 0.5);
-                        mappedPixel = ComposePixel(huePixel.r, huePixel.g, huePixel.b, alpha);
-                    }
-                    else if (channelIndex == 1)
-                    {
-                        mappedPixel = ComposePixel(hsl.s, hsl.s, hsl.s, alpha);
-                    }
-                    else
-                    {
-                        mappedPixel = ComposePixel(hsl.l, hsl.l, hsl.l, alpha);
-                    }
-                    break;
+                    lastReportedProgress = progress;
+                    auto weakThis = get_weak();
+                    dispatcherQueue.TryEnqueue([weakThis, requestId, progress]()
+                        {
+                            if (auto self = weakThis.get())
+                            {
+                                if (requestId == self->m_previewRequestId)
+                                {
+                                    self->PreviewProgressBar().Value(static_cast<double>(progress));
+                                }
+                            }
+                        });
                 }
+            }
 
-                case ColorMode::HSV:
-                {
-                    const auto hsv = RgbToHsv(pixel);
-                    if (channelIndex == 0)
-                    {
-                        const auto huePixel = HsvToRgb(hsv.h, 1.0, 1.0);
-                        mappedPixel = ComposePixel(huePixel.r, huePixel.g, huePixel.b, alpha);
-                    }
-                    else if (channelIndex == 1)
-                    {
-                        mappedPixel = ComposePixel(hsv.s, hsv.s, hsv.s, alpha);
-                    }
-                    else
-                    {
-                        mappedPixel = ComposePixel(hsv.v, hsv.v, hsv.v, alpha);
-                    }
-                    break;
-                }
+            // switch back to UI thread
+            // also see comment on "co_await winrt::resume_background();"
+            co_await uiThread;
 
-                case ColorMode::CMYK:
-                {
-                    const auto cmyk = RgbToCmyk(pixel);
-                    const double channelValue = channelIndex == 0 ? cmyk.c : (channelIndex == 1 ? cmyk.m : (channelIndex == 2 ? cmyk.y : cmyk.k));
-                    if (showGrayscale || channelIndex == 3)
-                    {
-                        mappedPixel = ComposePixel(channelValue, channelValue, channelValue, alpha);
-                    }
-                    else if (channelIndex == 0)
-                    {
-                        mappedPixel = ComposePixel(0.0, channelValue, channelValue, alpha);
-                    }
-                    else if (channelIndex == 1)
-                    {
-                        mappedPixel = ComposePixel(channelValue, 0.0, channelValue, alpha);
-                    }
-                    else
-                    {
-                        mappedPixel = ComposePixel(channelValue, channelValue, 0.0, alpha);
-                    }
-                    break;
-                }
+            if (requestId != m_previewRequestId)
+            {
+                co_return;
+            }
 
-                case ColorMode::LAB:
-                {
-                    const auto lab = RgbToLab(pixel);
-                    if (channelIndex == 0)
-                    {
-                        const double lightness = Clamp01(lab.l / 100.0);
-                        mappedPixel = ComposePixel(lightness, lightness, lightness, alpha);
-                    }
-                    else if (channelIndex == 1)
-                    {
-                        const double value = Clamp01((lab.a + 128.0) / 255.0);
-                        mappedPixel = ComposePixel(value, value, value, alpha);
-                    }
-                    else
-                    {
-                        const double value = Clamp01((lab.b + 128.0) / 255.0);
-                        mappedPixel = ComposePixel(value, value, value, alpha);
-                    }
-                    break;
-                }
-                }
+            Microsoft::UI::Xaml::Media::Imaging::WriteableBitmap writeableBitmap(
+                static_cast<int32_t>(pixelWidth),
+                static_cast<int32_t>(pixelHeight));
 
-                previewPixels[offset + 0] = mappedPixel[0];
-                previewPixels[offset + 1] = mappedPixel[1];
-                previewPixels[offset + 2] = mappedPixel[2];
-                previewPixels[offset + 3] = mappedPixel[3];
+            auto pixelBuffer = writeableBitmap.PixelBuffer();
+            auto bufferByteAccess = pixelBuffer.as<IBufferByteAccess>();
+
+            uint8_t* destination = nullptr;
+            check_hresult(bufferByteAccess->Buffer(&destination));
+            std::copy(previewPixels.begin(), previewPixels.end(), destination);
+            writeableBitmap.Invalidate();
+
+            PreviewProgressBar().Value(100.0);
+            PreviewProgressHost().Visibility(Visibility::Collapsed);
+            PreviewImage().Source(writeableBitmap);
+            EmptyStatePanel().Visibility(Visibility::Collapsed);
+            RestorePreviewView();
+
+            const hstring statusText = definition.mode == ColorMode::Original
+                ? hstring{ L"原图" }
+                : hstring{ definition.label } + hstring{ L" · " } + channelLabel;
+
+            hstring windowTitle = loadedFileName.empty()
+                ? hstring{ L"Image Channel Viewer" }
+                : loadedFileName;
+
+            Title(windowTitle + hstring{ L" - " } + statusText);
+        }
+        catch (...)
+        {
+            if (requestId != 0)
+            {
+                auto weakThis = get_weak();
+                dispatcherQueue.TryEnqueue([weakThis, requestId]()
+                    {
+                        if (auto self = weakThis.get())
+                        {
+                            if (requestId == self->m_previewRequestId)
+                            {
+                                self->PreviewProgressHost().Visibility(Visibility::Collapsed);
+                            }
+                        }
+                    });
             }
         }
-
-        Microsoft::UI::Xaml::Media::Imaging::WriteableBitmap writeableBitmap(
-            static_cast<int32_t>(m_pixelWidth),
-            static_cast<int32_t>(m_pixelHeight));
-
-        auto pixelBuffer = writeableBitmap.PixelBuffer();
-        auto bufferByteAccess = pixelBuffer.as<IBufferByteAccess>();
-
-        uint8_t* destination = nullptr;
-        check_hresult(bufferByteAccess->Buffer(&destination));
-        std::copy(previewPixels.begin(), previewPixels.end(), destination);
-        writeableBitmap.Invalidate();
-
-        PreviewImage().Source(writeableBitmap);
-        EmptyStatePanel().Visibility(Visibility::Collapsed);
-        RestorePreviewView();
-
-        auto const& definition = m_modes.at(m_selectedModeIndex);
-        auto const& channelLabel = definition.channels.at(std::min<uint32_t>(m_selectedChannelIndex, static_cast<uint32_t>(definition.channels.size() - 1)));
-        const hstring statusText = definition.mode == ColorMode::Original
-            ? hstring{ L"原图" }
-            : hstring{ definition.label } + hstring{ L" · " } + channelLabel;
-
-        hstring windowTitle = m_loadedFileName.empty()
-            ? hstring{ L"Image Channel Viewer" }
-            : m_loadedFileName;
-
-        Title(windowTitle + hstring{ L" - " } + statusText);
     }
 
     std::optional<MainWindow::ColorMode> MainWindow::SelectedMode()
