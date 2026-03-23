@@ -1,0 +1,42 @@
+{
+  "configurations": [
+    {
+      "name": "Win32",
+      "intelliSenseMode": "windows-msvc-x64",
+      "cppStandard": "c++20",
+      "cStandard": "c17",
+      "windowsSdkVersion": "10.0.26100.0",
+      "includePath": [
+        "${workspaceFolder}",
+        "${workspaceFolder}/Generated Files",
+        "${workspaceFolder}/Generated Files/winrt",
+        "${env:USERPROFILE}/.nuget/packages/microsoft.windowsappsdk/1.6.250228001/include",
+        "${env:USERPROFILE}/.nuget/packages/microsoft.windows.implementationlibrary/1.0.250325.1/include",
+        "${env:USERPROFILE}/.nuget/packages/microsoft.web.webview2/1.0.2651.64/build/native/include",
+        "${env:USERPROFILE}/.nuget/packages/microsoft.web.webview2/1.0.2651.64/build/native/include-winrt"
+      ],
+      "browse": {
+        "path": [
+          "${workspaceFolder}",
+          "${workspaceFolder}/Generated Files",
+          "${workspaceFolder}/Generated Files/winrt",
+          "${env:USERPROFILE}/.nuget/packages/microsoft.windowsappsdk/1.6.250228001/include",
+          "${env:USERPROFILE}/.nuget/packages/microsoft.windows.implementationlibrary/1.0.250325.1/include",
+          "${env:USERPROFILE}/.nuget/packages/microsoft.web.webview2/1.0.2651.64/build/native/include",
+          "${env:USERPROFILE}/.nuget/packages/microsoft.web.webview2/1.0.2651.64/build/native/include-winrt"
+        ],
+        "limitSymbolsToIncludedHeaders": true
+      },
+      "defines": [
+        "UNICODE",
+        "_UNICODE",
+        "_WINDOWS",
+        "WIN32_LEAN_AND_MEAN",
+        "NOMINMAX",
+        "MICROSOFT_WINDOWSAPPSDK_SELFCONTAINED=1",
+        "MICROSOFT_WINDOWSAPPSDK_UNDOCKEDREGFREEWINRT_AUTO_INITIALIZE_LOADLIBRARY"
+      ]
+    }
+  ],
+  "version": 4
+}
