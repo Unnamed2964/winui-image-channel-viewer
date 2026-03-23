@@ -310,6 +310,7 @@ namespace winrt::image_channel_viewer::implementation
     MainWindow::MainWindow()
     {
         InitializeComponent();
+        Title(L"Image Channel Viewer");
         InitializeModes();
         Populatechannels();
     }
@@ -321,7 +322,7 @@ namespace winrt::image_channel_viewer::implementation
         LoadImageAsync();
     }
 
-    void MainWindow::OnColorModeChanged(IInspectable const& sender, Microsoft::UI::Xaml::Controls::SelectionChangedEventArgs const& args)
+    void MainWindow::OnColorModeItemClick(IInspectable const& sender, RoutedEventArgs const& args)
     {
         (void)sender;
         (void)args;
@@ -330,18 +331,36 @@ namespace winrt::image_channel_viewer::implementation
             return;
         }
 
+        auto menuItem = sender.try_as<Controls::MenuFlyoutItem>();
+        if (!menuItem)
+        {
+            return;
+        }
+
+        m_selectedModeIndex = unbox_value<uint32_t>(menuItem.Tag());
+        ColorModeSelectionText().Text(m_modes.at(m_selectedModeIndex).label);
         Populatechannels();
         RefreshPreview();
     }
 
-    void MainWindow::OnchannelChanged(IInspectable const& sender, Microsoft::UI::Xaml::Controls::SelectionChangedEventArgs const& args)
+    void MainWindow::OnchannelItemClick(IInspectable const& sender, RoutedEventArgs const& args)
     {
         (void)sender;
         (void)args;
-        if (!m_isUpdatingUi)
+        if (m_isUpdatingUi)
         {
-            RefreshPreview();
+            return;
         }
+
+        auto menuItem = sender.try_as<Controls::MenuFlyoutItem>();
+        if (!menuItem)
+        {
+            return;
+        }
+
+        m_selectedChannelIndex = unbox_value<uint32_t>(menuItem.Tag());
+        ChannelSelectionText().Text(menuItem.Text());
+        RefreshPreview();
     }
 
     void MainWindow::OnGrayscaleToggled(IInspectable const& sender, RoutedEventArgs const& args)
@@ -352,6 +371,16 @@ namespace winrt::image_channel_viewer::implementation
         {
             RefreshPreview();
         }
+    }
+
+    void MainWindow::OnPreviewViewChanged(IInspectable const& sender, Controls::ScrollViewerViewChangedEventArgs const& args)
+    {
+        (void)sender;
+        (void)args;
+
+        m_savedHorizontalOffset = PreviewScrollViewer().HorizontalOffset();
+        m_savedVerticalOffset = PreviewScrollViewer().VerticalOffset();
+        m_savedZoomFactor = PreviewScrollViewer().ZoomFactor();
     }
 
     Windows::Foundation::IAsyncAction MainWindow::LoadImageAsync()
@@ -410,8 +439,6 @@ namespace winrt::image_channel_viewer::implementation
         }
 
         EmptyStatePanel().Visibility(Visibility::Collapsed);
-        StatusTextBlock().Text(L"图片已载入，可以切换颜色模式和通道。");
-        MetaTextBlock().Text(m_loadedFileName + L"  ·  " + to_hstring(m_pixelWidth) + L" × " + to_hstring(m_pixelHeight));
         RefreshPreview();
     }
 
@@ -426,13 +453,19 @@ namespace winrt::image_channel_viewer::implementation
             { ColorMode::LAB, L"LAB", { L"L", L"a", L"b" }, false },
         };
 
-        auto items = ColorModeComboBox().Items();
+        auto items = ColorModeFlyout().Items();
         items.Clear();
-        for (auto const& mode : m_modes)
+        for (uint32_t index = 0; index < m_modes.size(); ++index)
         {
-            items.Append(box_value(mode.label));
+            Controls::MenuFlyoutItem item;
+            item.Text(m_modes.at(index).label);
+            item.Tag(box_value(index));
+            item.Click({ this, &MainWindow::OnColorModeItemClick });
+            items.Append(item);
         }
-        ColorModeComboBox().SelectedIndex(0);
+
+        m_selectedModeIndex = 0;
+        ColorModeSelectionText().Text(m_modes.front().label);
     }
 
     void MainWindow::Populatechannels()
@@ -443,20 +476,24 @@ namespace winrt::image_channel_viewer::implementation
             return;
         }
 
-        const auto modeIndex = static_cast<uint32_t>(ColorModeComboBox().SelectedIndex());
-        auto const& definition = m_modes.at(modeIndex);
+        auto const& definition = m_modes.at(m_selectedModeIndex);
 
         m_isUpdatingUi = true;
 
-        auto items = channelComboBox().Items();
+        auto items = ChannelFlyout().Items();
         items.Clear();
-        for (auto const& channel : definition.channels)
+        for (uint32_t index = 0; index < definition.channels.size(); ++index)
         {
-            items.Append(box_value(channel));
+            Controls::MenuFlyoutItem item;
+            item.Text(definition.channels.at(index));
+            item.Tag(box_value(index));
+            item.Click({ this, &MainWindow::OnchannelItemClick });
+            items.Append(item);
         }
 
-        channelComboBox().SelectedIndex(0);
-        channelComboBox().IsEnabled(definition.mode != ColorMode::Original);
+        m_selectedChannelIndex = 0;
+        ChannelSelectionText().Text(definition.channels.front());
+        ChannelDropDownButton().IsEnabled(definition.mode != ColorMode::Original);
         GrayscaleToggle().IsEnabled(definition.supportsGrayscaleToggle);
         if (!definition.supportsGrayscaleToggle)
         {
@@ -625,35 +662,56 @@ namespace winrt::image_channel_viewer::implementation
 
         PreviewImage().Source(writeableBitmap);
         EmptyStatePanel().Visibility(Visibility::Collapsed);
+        RestorePreviewView();
 
-        auto const& definition = m_modes.at(static_cast<uint32_t>(ColorModeComboBox().SelectedIndex()));
-        const auto channelLabel = unbox_value<hstring>(channelComboBox().SelectedItem());
+        auto const& definition = m_modes.at(m_selectedModeIndex);
+        auto const& channelLabel = definition.channels.at(std::min<uint32_t>(m_selectedChannelIndex, static_cast<uint32_t>(definition.channels.size() - 1)));
         const hstring statusText = definition.mode == ColorMode::Original
-            ? hstring{ L"当前显示原图。" }
-            : hstring{ L"当前显示 " } + hstring{ definition.label } + hstring{ L" · " } + channelLabel;
-        StatusTextBlock().Text(statusText);
+            ? hstring{ L"原图" }
+            : hstring{ definition.label } + hstring{ L" · " } + channelLabel;
+
+        hstring windowTitle = m_loadedFileName.empty()
+            ? hstring{ L"Image Channel Viewer" }
+            : m_loadedFileName;
+
+        Title(windowTitle + hstring{ L" - " } + statusText);
     }
 
     std::optional<MainWindow::ColorMode> MainWindow::SelectedMode()
     {
-        const int32_t selectedIndex = ColorModeComboBox().SelectedIndex();
-        if (selectedIndex < 0 || static_cast<uint32_t>(selectedIndex) >= m_modes.size())
+        if (m_selectedModeIndex >= m_modes.size())
         {
             return std::nullopt;
         }
 
-        return m_modes.at(static_cast<uint32_t>(selectedIndex)).mode;
+        return m_modes.at(m_selectedModeIndex).mode;
     }
 
     std::optional<uint32_t> MainWindow::SelectedchannelIndex()
     {
-        const int32_t selectedIndex = channelComboBox().SelectedIndex();
-        if (selectedIndex < 0)
+        const auto selectedMode = SelectedMode();
+        if (!selectedMode.has_value())
         {
             return std::nullopt;
         }
 
-        return static_cast<uint32_t>(selectedIndex);
+        auto const& definition = m_modes.at(m_selectedModeIndex);
+        if (m_selectedChannelIndex >= definition.channels.size())
+        {
+            return std::nullopt;
+        }
+
+        return m_selectedChannelIndex;
+    }
+
+    void MainWindow::RestorePreviewView()
+    {
+        PreviewScrollViewer().UpdateLayout();
+        PreviewScrollViewer().ChangeView(
+            m_savedHorizontalOffset,
+            m_savedVerticalOffset,
+            m_savedZoomFactor,
+            true);
     }
 
     HWND MainWindow::WindowHandle() const

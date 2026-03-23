@@ -18,118 +18,110 @@
             </LinearGradientBrush>
         </Grid.Background>
 
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
 
-        <Border
-            Margin="24"
-            Padding="20"
-            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-            BorderBrush="#140F172A"
-            BorderThickness="1"
-            CornerRadius="24">
-            <Grid ColumnSpacing="16" RowSpacing="14">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="220" />
-                    <ColumnDefinition Width="220" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
+            <StackPanel Margin="16" Spacing="12">
+                <StackPanel Orientation="Horizontal" Spacing="16">
+                    <Button
+                        x:Name="OpenImageButton"
+                        Height="32"
+                        Padding="16,0"
+                        MinWidth="136"
+                        Click="OnOpenImageClick"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE8B7;" />
+                            <TextBlock Text="选择图片" />
+                        </StackPanel>
+                    </Button>
 
-                <Button
-                    x:Name="OpenImageButton"
-                    Padding="18,12"
-                    MinWidth="136"
-                    Click="OnOpenImageClick"
-                    HorizontalAlignment="Left"
-                    VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <FontIcon Glyph="&#xE8B7;" />
-                        <TextBlock Text="选择图片" />
+                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                        <TextBlock Text="颜色模式" VerticalAlignment="Center" />
+                        <DropDownButton x:Name="ColorModeDropDownButton" MinWidth="140" Height="32">
+                            <DropDownButton.Content>
+                                <TextBlock x:Name="ColorModeSelectionText" Text="原图" />
+                            </DropDownButton.Content>
+                            <DropDownButton.Flyout>
+                                <MenuFlyout x:Name="ColorModeFlyout" Placement="Bottom" />
+                            </DropDownButton.Flyout>
+                        </DropDownButton>
                     </StackPanel>
-                </Button>
 
-                <ComboBox
-                    x:Name="ColorModeComboBox"
-                    Grid.Column="1"
-                    Header="颜色模式"
-                    SelectionChanged="OnColorModeChanged"
-                    HorizontalAlignment="Stretch"
-                    PlaceholderText="选择颜色模式" />
+                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                        <TextBlock Text="分量" VerticalAlignment="Center" />
+                        <DropDownButton x:Name="ChannelDropDownButton" MinWidth="120" Height="32">
+                            <DropDownButton.Content>
+                                <TextBlock x:Name="ChannelSelectionText" Text="原图" />
+                            </DropDownButton.Content>
+                            <DropDownButton.Flyout>
+                                <MenuFlyout x:Name="ChannelFlyout" Placement="Bottom" />
+                            </DropDownButton.Flyout>
+                        </DropDownButton>
+                    </StackPanel>
 
-                <ComboBox
-                    x:Name="channelComboBox"
-                    Grid.Column="2"
-                    Header="通道"
-                    SelectionChanged="OnchannelChanged"
-                    HorizontalAlignment="Stretch"
-                    PlaceholderText="选择通道" />
-
-                <ToggleSwitch
-                    x:Name="GrayscaleToggle"
-                    Grid.Column="3"
-                    Header="黑白显示"
-                    Toggled="OnGrayscaleToggled"
-                    VerticalAlignment="Center" />
-
-                <StackPanel Grid.Column="4" Spacing="4" VerticalAlignment="Center">
-                    <TextBlock
-                        x:Name="StatusTextBlock"
-                        FontSize="14"
-                        FontWeight="SemiBold"
-                        Text="请选择一张图片开始。" />
-                    <TextBlock
-                        x:Name="MetaTextBlock"
-                        Opacity="0.72"
-                        Text="支持 PNG、JPEG、BMP、TIFF、GIF 等常见格式。" />
+                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                        <TextBlock Text="黑白显示" VerticalAlignment="Center" />
+                        <ToggleSwitch
+                            x:Name="GrayscaleToggle"
+                            Toggled="OnGrayscaleToggled"
+                            VerticalAlignment="Center" />
+                    </StackPanel>
                 </StackPanel>
-            </Grid>
-        </Border>
 
-        <Grid Grid.Row="1" Margin="24,0,24,24">
-            <Border
-                Background="#CCFFFFFF"
-                BorderBrush="#140F172A"
-                BorderThickness="1"
-                CornerRadius="28"
-                Padding="24">
-                <Grid>
+            </StackPanel>
+
+            <Border Grid.Row="1" Height="1" Background="#220F172A" />
+
+            <Grid Grid.Row="2" Margin="16,12,16,16">
+                <ScrollViewer
+                    x:Name="PreviewScrollViewer"
+                    ZoomMode="Enabled"
+                    IsTabStop="True"
+                    IsVerticalScrollChainingEnabled="True"
+                    ViewChanged="OnPreviewViewChanged"
+                    HorizontalScrollMode="Enabled"
+                    HorizontalScrollBarVisibility="Auto"
+                    VerticalScrollMode="Enabled"
+                    VerticalScrollBarVisibility="Auto">
                     <Image
                         x:Name="PreviewImage"
-                        Stretch="Uniform"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center" />
+                        Stretch="None"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Top" />
+                </ScrollViewer>
 
-                    <StackPanel
-                        x:Name="EmptyStatePanel"
-                        Spacing="14"
+                <StackPanel
+                    x:Name="EmptyStatePanel"
+                    Spacing="12"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                    <Border
+                        Width="84"
+                        Height="84"
+                        CornerRadius="42"
+                        Background="#FFE5EEF9">
+                        <Viewbox Margin="24">
+                            <FontIcon Glyph="&#xEB9F;" Foreground="#FF335C8A" />
+                        </Viewbox>
+                    </Border>
+                    <TextBlock
                         HorizontalAlignment="Center"
-                        VerticalAlignment="Center">
-                        <Border
-                            Width="84"
-                            Height="84"
-                            CornerRadius="42"
-                            Background="#FFE5EEF9">
-                            <Viewbox Margin="24">
-                                <FontIcon Glyph="&#xEB9F;" Foreground="#FF335C8A" />
-                            </Viewbox>
-                        </Border>
-                        <TextBlock
-                            HorizontalAlignment="Center"
-                            FontSize="22"
-                            FontWeight="SemiBold"
-                            Text="尚未载入图片" />
-                        <TextBlock
-                            HorizontalAlignment="Center"
-                            TextAlignment="Center"
-                            Opacity="0.74"
-                            Text="选择图片后，可切换原图、RGB、HSL、HSV、CMYK、LAB 等模式查看不同通道。" />
-                    </StackPanel>
-                </Grid>
-            </Border>
+                        FontSize="22"
+                        FontWeight="SemiBold"
+                        Text="尚未载入图片" />
+                    <TextBlock
+                        HorizontalAlignment="Center"
+                        TextAlignment="Center"
+                        Opacity="0.74"
+                        Text="选择图片后，可切换原图、RGB、HSL、HSV、CMYK、LAB 等模式查看不同分量。" />
+                </StackPanel>
+            </Grid>
         </Grid>
     </Grid>
 </Window>

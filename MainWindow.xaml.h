@@ -9,9 +9,10 @@ namespace winrt::image_channel_viewer::implementation
         MainWindow();
 
         void OnOpenImageClick(IInspectable const& sender, Microsoft::UI::Xaml::RoutedEventArgs const& args);
-        void OnColorModeChanged(IInspectable const& sender, Microsoft::UI::Xaml::Controls::SelectionChangedEventArgs const& args);
-        void OnchannelChanged(IInspectable const& sender, Microsoft::UI::Xaml::Controls::SelectionChangedEventArgs const& args);
+        void OnColorModeItemClick(IInspectable const& sender, Microsoft::UI::Xaml::RoutedEventArgs const& args);
+        void OnchannelItemClick(IInspectable const& sender, Microsoft::UI::Xaml::RoutedEventArgs const& args);
         void OnGrayscaleToggled(IInspectable const& sender, Microsoft::UI::Xaml::RoutedEventArgs const& args);
+        void OnPreviewViewChanged(IInspectable const& sender, Microsoft::UI::Xaml::Controls::ScrollViewerViewChangedEventArgs const& args);
 
     private:
         enum class ColorMode
@@ -38,6 +39,7 @@ namespace winrt::image_channel_viewer::implementation
         void RefreshPreview();
         std::optional<ColorMode> SelectedMode();
         std::optional<uint32_t> SelectedchannelIndex();
+        void RestorePreviewView();
         HWND WindowHandle() const;
 
         std::vector<ModeDefinition> m_modes;
@@ -47,6 +49,11 @@ namespace winrt::image_channel_viewer::implementation
         uint32_t m_pixelWidth{ 0 };
         uint32_t m_pixelHeight{ 0 };
         uint32_t m_stride{ 0 };
+        uint32_t m_selectedModeIndex{ 0 };
+        uint32_t m_selectedChannelIndex{ 0 };
+        double m_savedHorizontalOffset{ 0.0 };
+        double m_savedVerticalOffset{ 0.0 };
+        float m_savedZoomFactor{ 1.0f };
         bool m_isUpdatingUi{ false };
     };
 }
