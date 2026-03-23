@@ -63,4 +63,4 @@
 
 ## 附注
 
-本项目许多代码由 Vibe Coding 生成，你可以在提交记录中查阅主要的 prompt。但是本人依然对代码的最终质量负责。
+本项目许多代码由 Vibe Coding 生成，你可以在提交记录中查阅主要的 prompt。但是本人依然对代码的最终质量负责。但是上一句话并不是在意味着或暗示取消 MIT 协议中 “THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, ” 所开头的一段，或者恢复或重新包含那一段所排除的一部分保证。
