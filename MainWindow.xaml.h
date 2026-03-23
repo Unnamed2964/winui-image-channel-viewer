@@ -39,6 +39,7 @@ namespace winrt::image_channel_viewer::implementation
         void RefreshPreview();
         std::optional<ColorMode> SelectedMode();
         std::optional<uint32_t> SelectedchannelIndex();
+        float ComputeFitZoomFactor();
         void RestorePreviewView();
         HWND WindowHandle() const;
 
@@ -54,6 +55,7 @@ namespace winrt::image_channel_viewer::implementation
         double m_savedHorizontalOffset{ 0.0 };
         double m_savedVerticalOffset{ 0.0 };
         float m_savedZoomFactor{ 1.0f };
+        bool m_fitPreviewOnNextRefresh{ false };
         bool m_isUpdatingUi{ false };
     };
 }

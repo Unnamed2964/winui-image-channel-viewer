@@ -436,6 +436,9 @@ namespace winrt::image_channel_viewer::implementation
             std::copy_n(rowStart, m_stride, m_sourcePixels.data() + (row * m_stride));
         }
 
+        m_fitPreviewOnNextRefresh = true;
+        m_savedHorizontalOffset = 0.0;
+        m_savedVerticalOffset = 0.0;
         EmptyStatePanel().Visibility(Visibility::Collapsed);
         RefreshPreview();
     }
@@ -443,7 +446,7 @@ namespace winrt::image_channel_viewer::implementation
     void MainWindow::InitializeModes()
     {
         m_modes = {
-            { ColorMode::Original, L"原图", { L"原图" }, false },
+            { ColorMode::Original, L"原图", { L"原图" }, true },
             { ColorMode::RGB, L"RGB", { L"R", L"G", L"B" }, true },
             { ColorMode::HSL, L"HSL", { L"H", L"S", L"L" }, false },
             { ColorMode::HSV, L"HSV", { L"H", L"S", L"V" }, false },
@@ -702,9 +705,31 @@ namespace winrt::image_channel_viewer::implementation
         return m_selectedChannelIndex;
     }
 
+    float MainWindow::ComputeFitZoomFactor()
+    {
+        const double viewportWidth = PreviewScrollViewer().ActualWidth();
+        const double viewportHeight = PreviewScrollViewer().ActualHeight();
+        if (viewportWidth <= 0.0 || viewportHeight <= 0.0 || m_pixelWidth == 0 || m_pixelHeight == 0)
+        {
+            return 1.0f;
+        }
+
+        const double widthRatio = viewportWidth / static_cast<double>(m_pixelWidth);
+        const double heightRatio = viewportHeight / static_cast<double>(m_pixelHeight);
+        return static_cast<float>(std::min(widthRatio, heightRatio));
+    }
+
     void MainWindow::RestorePreviewView()
     {
         PreviewScrollViewer().UpdateLayout();
+        if (m_fitPreviewOnNextRefresh)
+        {
+            m_savedZoomFactor = ComputeFitZoomFactor();
+            m_savedHorizontalOffset = 0.0;
+            m_savedVerticalOffset = 0.0;
+            m_fitPreviewOnNextRefresh = false;
+        }
+
         PreviewScrollViewer().ChangeView(
             m_savedHorizontalOffset,
             m_savedVerticalOffset,
