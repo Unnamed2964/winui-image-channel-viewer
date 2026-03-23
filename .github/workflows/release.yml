@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-release:
-    runs-on: windows-2022
+    runs-on: windows-2025
     permissions:
       contents: read
     strategy:
@@ -17,7 +17,7 @@ jobs:
           - platform: x64
             asset_suffix: win-x64
             out_dir: artifacts/x64/
-          - platform: Win32
+          - platform: x86
             asset_suffix: win-x86
             out_dir: artifacts/x86/
           - platform: ARM64
@@ -26,12 +26,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@main
         with:
           fetch-depth: 0
 
       - name: Set up MSBuild
-        uses: microsoft/setup-msbuild@v2
+        uses: microsoft/setup-msbuild@main
 
       # help needed: we have no arm64 device to test whether arm64 build really works
       # message us if you have arm64 device and can help with testing arm64 build
@@ -66,7 +66,7 @@ jobs:
           "asset_path=$assetName" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Upload packaged artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@main
         with:
           name: ${{ matrix.asset_suffix }}
           path: ${{ steps.package.outputs.asset_path }}
@@ -79,12 +79,12 @@ jobs:
 
     steps:
       - name: Download packaged artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@main
         with:
           path: release-assets
 
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@main
         with:
           name: ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
