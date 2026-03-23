@@ -84,7 +84,7 @@ jobs:
           path: release-assets
 
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@main
+        uses: softprops/action-gh-release@master
         with:
           name: ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
