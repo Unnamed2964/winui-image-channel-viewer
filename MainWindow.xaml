@@ -3,13 +3,133 @@
     x:Class="image_component_viewer.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:image_component_viewer"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:local="using:image_component_viewer"
     mc:Ignorable="d"
-    Title="image_component_viewer">
+    Title="Image Component Viewer">
 
     <Grid>
+        <Grid.Background>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#FFF5F7FB" Offset="0.0" />
+                <GradientStop Color="#FFE6EEF8" Offset="0.55" />
+                <GradientStop Color="#FFF9FBFF" Offset="1.0" />
+            </LinearGradientBrush>
+        </Grid.Background>
 
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border
+            Margin="24"
+            Padding="20"
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="#140F172A"
+            BorderThickness="1"
+            CornerRadius="24">
+            <Grid ColumnSpacing="16" RowSpacing="14">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="220" />
+                    <ColumnDefinition Width="220" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Button
+                    x:Name="OpenImageButton"
+                    Padding="18,12"
+                    MinWidth="136"
+                    Click="OnOpenImageClick"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE8B7;" />
+                        <TextBlock Text="选择图片" />
+                    </StackPanel>
+                </Button>
+
+                <ComboBox
+                    x:Name="ColorModeComboBox"
+                    Grid.Column="1"
+                    Header="颜色模式"
+                    SelectionChanged="OnColorModeChanged"
+                    HorizontalAlignment="Stretch"
+                    PlaceholderText="选择颜色模式" />
+
+                <ComboBox
+                    x:Name="ComponentComboBox"
+                    Grid.Column="2"
+                    Header="分量"
+                    SelectionChanged="OnComponentChanged"
+                    HorizontalAlignment="Stretch"
+                    PlaceholderText="选择分量" />
+
+                <ToggleSwitch
+                    x:Name="GrayscaleToggle"
+                    Grid.Column="3"
+                    Header="黑白显示"
+                    Toggled="OnGrayscaleToggled"
+                    VerticalAlignment="Center" />
+
+                <StackPanel Grid.Column="4" Spacing="4" VerticalAlignment="Center">
+                    <TextBlock
+                        x:Name="StatusTextBlock"
+                        FontSize="14"
+                        FontWeight="SemiBold"
+                        Text="请选择一张图片开始。" />
+                    <TextBlock
+                        x:Name="MetaTextBlock"
+                        Opacity="0.72"
+                        Text="支持 PNG、JPEG、BMP、TIFF、GIF 等常见格式。" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1" Margin="24,0,24,24">
+            <Border
+                Background="#CCFFFFFF"
+                BorderBrush="#140F172A"
+                BorderThickness="1"
+                CornerRadius="28"
+                Padding="24">
+                <Grid>
+                    <Image
+                        x:Name="PreviewImage"
+                        Stretch="Uniform"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center" />
+
+                    <StackPanel
+                        x:Name="EmptyStatePanel"
+                        Spacing="14"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                        <Border
+                            Width="84"
+                            Height="84"
+                            CornerRadius="42"
+                            Background="#FFE5EEF9">
+                            <Viewbox Margin="24">
+                                <FontIcon Glyph="&#xEB9F;" Foreground="#FF335C8A" />
+                            </Viewbox>
+                        </Border>
+                        <TextBlock
+                            HorizontalAlignment="Center"
+                            FontSize="22"
+                            FontWeight="SemiBold"
+                            Text="尚未载入图片" />
+                        <TextBlock
+                            HorizontalAlignment="Center"
+                            TextAlignment="Center"
+                            Opacity="0.74"
+                            Text="选择图片后，可切换原图、RGB、HSL、HSV、CMYK、LAB 等模式查看不同分量。" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
     </Grid>
 </Window>

@@ -1,0 +1,12 @@
+.vs/
+Generated Files/
+obj/
+x64/
+image_co.*/
+*.VC.db
+*.VC.opendb
+*.user
+*.suo
+*.aps
+*.tlog
+*.lastbuildstate
