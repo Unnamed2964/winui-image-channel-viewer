@@ -6,7 +6,7 @@
 
 ## 运行截图
 
-<img width="898.5" height="549.5" alt="image" src="https://github.com/user-attachments/assets/0621721d-d21d-4abe-aed9-48e3da5c4e58" />
+<img width="673.875" height="412.125" alt="image" src="https://github.com/user-attachments/assets/0621721d-d21d-4abe-aed9-48e3da5c4e58" />
 
 ## 功能
 
