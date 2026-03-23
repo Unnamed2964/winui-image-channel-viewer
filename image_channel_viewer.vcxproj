@@ -12,8 +12,8 @@
     <MinimalCoreWin>true</MinimalCoreWin>
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{6E9424CC-021B-4FD4-97D2-D7F0A164C8F9}</ProjectGuid>
-    <ProjectName>image_component_viewer</ProjectName>
-    <RootNamespace>image_component_viewer</RootNamespace>
+    <ProjectName>image_channel_viewer</ProjectName>
+    <RootNamespace>image_channel_viewer</RootNamespace>
     <TargetName>$(RootNamespace)</TargetName>
     <DefaultLanguage>zh-CN</DefaultLanguage>
     <MinimumVisualStudioVersion>16.0</MinimumVisualStudioVersion>

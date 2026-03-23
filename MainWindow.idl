@@ -1,4 +1,4 @@
-namespace image_component_viewer
+namespace image_channel_viewer
 {
     [default_interface]
     runtimeclass MainWindow : Microsoft.UI.Xaml.Window

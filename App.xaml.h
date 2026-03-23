@@ -2,7 +2,7 @@
 
 #include "App.xaml.g.h"
 
-namespace winrt::image_component_viewer::implementation
+namespace winrt::image_channel_viewer::implementation
 {
     struct App : AppT<App>
     {

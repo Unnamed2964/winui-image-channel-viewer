@@ -2,7 +2,7 @@
 
 #include "MainWindow.g.h"
 
-namespace winrt::image_component_viewer::implementation
+namespace winrt::image_channel_viewer::implementation
 {
     struct MainWindow : MainWindowT<MainWindow>
     {
@@ -10,7 +10,7 @@ namespace winrt::image_component_viewer::implementation
 
         void OnOpenImageClick(IInspectable const& sender, Microsoft::UI::Xaml::RoutedEventArgs const& args);
         void OnColorModeChanged(IInspectable const& sender, Microsoft::UI::Xaml::Controls::SelectionChangedEventArgs const& args);
-        void OnComponentChanged(IInspectable const& sender, Microsoft::UI::Xaml::Controls::SelectionChangedEventArgs const& args);
+        void OnchannelChanged(IInspectable const& sender, Microsoft::UI::Xaml::Controls::SelectionChangedEventArgs const& args);
         void OnGrayscaleToggled(IInspectable const& sender, Microsoft::UI::Xaml::RoutedEventArgs const& args);
 
     private:
@@ -28,16 +28,16 @@ namespace winrt::image_component_viewer::implementation
         {
             ColorMode mode;
             wchar_t const* label;
-            std::vector<winrt::hstring> components;
+            std::vector<winrt::hstring> channels;
             bool supportsGrayscaleToggle;
         };
 
         winrt::Windows::Foundation::IAsyncAction LoadImageAsync();
         void InitializeModes();
-        void PopulateComponents();
+        void Populatechannels();
         void RefreshPreview();
         std::optional<ColorMode> SelectedMode();
-        std::optional<uint32_t> SelectedComponentIndex();
+        std::optional<uint32_t> SelectedchannelIndex();
         HWND WindowHandle() const;
 
         std::vector<ModeDefinition> m_modes;
@@ -51,7 +51,7 @@ namespace winrt::image_component_viewer::implementation
     };
 }
 
-namespace winrt::image_component_viewer::factory_implementation
+namespace winrt::image_channel_viewer::factory_implementation
 {
     struct MainWindow : MainWindowT<MainWindow, implementation::MainWindow>
     {

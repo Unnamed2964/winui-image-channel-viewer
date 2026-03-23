@@ -5,7 +5,7 @@
 using namespace winrt;
 using namespace Microsoft::UI::Xaml;
 
-namespace winrt::image_component_viewer::implementation
+namespace winrt::image_channel_viewer::implementation
 {
     App::App()
     {

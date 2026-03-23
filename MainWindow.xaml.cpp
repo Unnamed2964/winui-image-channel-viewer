@@ -305,13 +305,13 @@ namespace
     }
 }
 
-namespace winrt::image_component_viewer::implementation
+namespace winrt::image_channel_viewer::implementation
 {
     MainWindow::MainWindow()
     {
         InitializeComponent();
         InitializeModes();
-        PopulateComponents();
+        Populatechannels();
     }
 
     void MainWindow::OnOpenImageClick(IInspectable const& sender, RoutedEventArgs const& args)
@@ -330,11 +330,11 @@ namespace winrt::image_component_viewer::implementation
             return;
         }
 
-        PopulateComponents();
+        Populatechannels();
         RefreshPreview();
     }
 
-    void MainWindow::OnComponentChanged(IInspectable const& sender, Microsoft::UI::Xaml::Controls::SelectionChangedEventArgs const& args)
+    void MainWindow::OnchannelChanged(IInspectable const& sender, Microsoft::UI::Xaml::Controls::SelectionChangedEventArgs const& args)
     {
         (void)sender;
         (void)args;
@@ -410,7 +410,7 @@ namespace winrt::image_component_viewer::implementation
         }
 
         EmptyStatePanel().Visibility(Visibility::Collapsed);
-        StatusTextBlock().Text(L"图片已载入，可以切换颜色模式和分量。");
+        StatusTextBlock().Text(L"图片已载入，可以切换颜色模式和通道。");
         MetaTextBlock().Text(m_loadedFileName + L"  ·  " + to_hstring(m_pixelWidth) + L" × " + to_hstring(m_pixelHeight));
         RefreshPreview();
     }
@@ -435,7 +435,7 @@ namespace winrt::image_component_viewer::implementation
         ColorModeComboBox().SelectedIndex(0);
     }
 
-    void MainWindow::PopulateComponents()
+    void MainWindow::Populatechannels()
     {
         const auto selectedMode = SelectedMode();
         if (!selectedMode.has_value())
@@ -448,15 +448,15 @@ namespace winrt::image_component_viewer::implementation
 
         m_isUpdatingUi = true;
 
-        auto items = ComponentComboBox().Items();
+        auto items = channelComboBox().Items();
         items.Clear();
-        for (auto const& component : definition.components)
+        for (auto const& channel : definition.channels)
         {
-            items.Append(box_value(component));
+            items.Append(box_value(channel));
         }
 
-        ComponentComboBox().SelectedIndex(0);
-        ComponentComboBox().IsEnabled(definition.mode != ColorMode::Original);
+        channelComboBox().SelectedIndex(0);
+        channelComboBox().IsEnabled(definition.mode != ColorMode::Original);
         GrayscaleToggle().IsEnabled(definition.supportsGrayscaleToggle);
         if (!definition.supportsGrayscaleToggle)
         {
@@ -476,7 +476,7 @@ namespace winrt::image_component_viewer::implementation
         }
 
         const auto selectedMode = SelectedMode().value_or(ColorMode::Original);
-        const auto componentIndex = SelectedComponentIndex().value_or(0);
+        const auto channelIndex = SelectedchannelIndex().value_or(0);
         const bool showGrayscale = GrayscaleToggle().IsOn();
 
         std::vector<uint8_t> previewPixels(m_stride * m_pixelHeight);
@@ -505,17 +505,17 @@ namespace winrt::image_component_viewer::implementation
 
                 case ColorMode::RGB:
                 {
-                    const double componentValue = componentIndex == 0 ? pixel.r : (componentIndex == 1 ? pixel.g : pixel.b);
+                    const double channelValue = channelIndex == 0 ? pixel.r : (channelIndex == 1 ? pixel.g : pixel.b);
                     if (showGrayscale)
                     {
-                        mappedPixel = ComposePixel(componentValue, componentValue, componentValue, alpha);
+                        mappedPixel = ComposePixel(channelValue, channelValue, channelValue, alpha);
                     }
                     else
                     {
                         mappedPixel = ComposePixel(
-                            componentIndex == 0 ? componentValue : 0.0,
-                            componentIndex == 1 ? componentValue : 0.0,
-                            componentIndex == 2 ? componentValue : 0.0,
+                            channelIndex == 0 ? channelValue : 0.0,
+                            channelIndex == 1 ? channelValue : 0.0,
+                            channelIndex == 2 ? channelValue : 0.0,
                             alpha);
                     }
                     break;
@@ -524,12 +524,12 @@ namespace winrt::image_component_viewer::implementation
                 case ColorMode::HSL:
                 {
                     const auto hsl = RgbToHsl(pixel);
-                    if (componentIndex == 0)
+                    if (channelIndex == 0)
                     {
                         const auto huePixel = HslToRgb(hsl.h, 1.0, 0.5);
                         mappedPixel = ComposePixel(huePixel.r, huePixel.g, huePixel.b, alpha);
                     }
-                    else if (componentIndex == 1)
+                    else if (channelIndex == 1)
                     {
                         mappedPixel = ComposePixel(hsl.s, hsl.s, hsl.s, alpha);
                     }
@@ -543,12 +543,12 @@ namespace winrt::image_component_viewer::implementation
                 case ColorMode::HSV:
                 {
                     const auto hsv = RgbToHsv(pixel);
-                    if (componentIndex == 0)
+                    if (channelIndex == 0)
                     {
                         const auto huePixel = HsvToRgb(hsv.h, 1.0, 1.0);
                         mappedPixel = ComposePixel(huePixel.r, huePixel.g, huePixel.b, alpha);
                     }
-                    else if (componentIndex == 1)
+                    else if (channelIndex == 1)
                     {
                         mappedPixel = ComposePixel(hsv.s, hsv.s, hsv.s, alpha);
                     }
@@ -562,22 +562,22 @@ namespace winrt::image_component_viewer::implementation
                 case ColorMode::CMYK:
                 {
                     const auto cmyk = RgbToCmyk(pixel);
-                    const double componentValue = componentIndex == 0 ? cmyk.c : (componentIndex == 1 ? cmyk.m : (componentIndex == 2 ? cmyk.y : cmyk.k));
-                    if (showGrayscale || componentIndex == 3)
+                    const double channelValue = channelIndex == 0 ? cmyk.c : (channelIndex == 1 ? cmyk.m : (channelIndex == 2 ? cmyk.y : cmyk.k));
+                    if (showGrayscale || channelIndex == 3)
                     {
-                        mappedPixel = ComposePixel(componentValue, componentValue, componentValue, alpha);
+                        mappedPixel = ComposePixel(channelValue, channelValue, channelValue, alpha);
                     }
-                    else if (componentIndex == 0)
+                    else if (channelIndex == 0)
                     {
-                        mappedPixel = ComposePixel(0.0, componentValue, componentValue, alpha);
+                        mappedPixel = ComposePixel(0.0, channelValue, channelValue, alpha);
                     }
-                    else if (componentIndex == 1)
+                    else if (channelIndex == 1)
                     {
-                        mappedPixel = ComposePixel(componentValue, 0.0, componentValue, alpha);
+                        mappedPixel = ComposePixel(channelValue, 0.0, channelValue, alpha);
                     }
                     else
                     {
-                        mappedPixel = ComposePixel(componentValue, componentValue, 0.0, alpha);
+                        mappedPixel = ComposePixel(channelValue, channelValue, 0.0, alpha);
                     }
                     break;
                 }
@@ -585,12 +585,12 @@ namespace winrt::image_component_viewer::implementation
                 case ColorMode::LAB:
                 {
                     const auto lab = RgbToLab(pixel);
-                    if (componentIndex == 0)
+                    if (channelIndex == 0)
                     {
                         const double lightness = Clamp01(lab.l / 100.0);
                         mappedPixel = ComposePixel(lightness, lightness, lightness, alpha);
                     }
-                    else if (componentIndex == 1)
+                    else if (channelIndex == 1)
                     {
                         const double value = Clamp01((lab.a + 128.0) / 255.0);
                         mappedPixel = ComposePixel(value, value, value, alpha);
@@ -627,10 +627,10 @@ namespace winrt::image_component_viewer::implementation
         EmptyStatePanel().Visibility(Visibility::Collapsed);
 
         auto const& definition = m_modes.at(static_cast<uint32_t>(ColorModeComboBox().SelectedIndex()));
-        const auto componentLabel = unbox_value<hstring>(ComponentComboBox().SelectedItem());
+        const auto channelLabel = unbox_value<hstring>(channelComboBox().SelectedItem());
         const hstring statusText = definition.mode == ColorMode::Original
             ? hstring{ L"当前显示原图。" }
-            : hstring{ L"当前显示 " } + hstring{ definition.label } + hstring{ L" · " } + componentLabel;
+            : hstring{ L"当前显示 " } + hstring{ definition.label } + hstring{ L" · " } + channelLabel;
         StatusTextBlock().Text(statusText);
     }
 
@@ -645,9 +645,9 @@ namespace winrt::image_component_viewer::implementation
         return m_modes.at(static_cast<uint32_t>(selectedIndex)).mode;
     }
 
-    std::optional<uint32_t> MainWindow::SelectedComponentIndex()
+    std::optional<uint32_t> MainWindow::SelectedchannelIndex()
     {
-        const int32_t selectedIndex = ComponentComboBox().SelectedIndex();
+        const int32_t selectedIndex = channelComboBox().SelectedIndex();
         if (selectedIndex < 0)
         {
             return std::nullopt;
