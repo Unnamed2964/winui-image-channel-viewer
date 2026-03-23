@@ -1,4 +1,4 @@
-> Copied from WinUI 3 Gallery ([microsoft/WinUI-Gallery: This app demonstrates the controls available in WinUI and the Fluent Design System.](https://github.com/microsoft/WinUI-Gallery)):
+> Ported from WinUI 3 Gallery ([microsoft/WinUI-Gallery: This app demonstrates the controls available in WinUI and the Fluent Design System.](https://github.com/microsoft/WinUI-Gallery)):
 
 ## DropDownButton
 
@@ -34,7 +34,7 @@
 <ProgressBar Width="130" IsIndeterminate="True" ShowPaused="False" ShowError="False" />
 ```
 
-> Copied from [MicrosoftDocs/windows-dev-docs: Conceptual and overview content for developing Windows apps](https://github.com/MicrosoftDocs/windows-dev-docs):
+> Ported from [Content layout and spacing - Windows apps | Microsoft Learn](https://learn.microsoft.com/en-us/windows/apps/design/basics/content-basics), which is licensed under the Creative Commons Attribution 4.0 International according to [MicrosoftDocs/windows-dev-docs: Conceptual and overview content for developing Windows apps](https://github.com/MicrosoftDocs/windows-dev-docs), and licensed under the MIT License to any code.
 
 # Content layout and spacing
 
@@ -85,3 +85,5 @@ Some examples of how controls can relate to each other in common configurations.
 :::row::: :::column::: :::image type="content" source="images/expander-with-controls.png" alt-text="An example of an expander with child controls."::: :::column-end::: :::column::: Examples showing how to use an expander control (link) with list styles and common controls. Controls should be right-aligned with 16epx between the control and expander button. :::column-end::: :::row-end:::
 
 :::row::: :::column::: :::image type="content" source="images/expander-content-alignment.png" alt-text="An example how controls inside an expander are aligned."::: :::column-end::: :::column::: This example shows controls alignment when placed inside the expander. Indent the controls 48epx. :::column-end::: :::row-end:::
+
+> Each section of this document is licensed under its respective license separately.
