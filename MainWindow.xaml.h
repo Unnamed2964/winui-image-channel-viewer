@@ -9,6 +9,7 @@ namespace winrt::image_channel_viewer::implementation
         MainWindow();
 
         void OnOpenImageClick(IInspectable const& sender, Microsoft::UI::Xaml::RoutedEventArgs const& args);
+        void OnAboutClick(IInspectable const& sender, Microsoft::UI::Xaml::RoutedEventArgs const& args);
         void OnColorModeItemClick(IInspectable const& sender, Microsoft::UI::Xaml::RoutedEventArgs const& args);
         void OnchannelItemClick(IInspectable const& sender, Microsoft::UI::Xaml::RoutedEventArgs const& args);
         void OnGrayscaleToggled(IInspectable const& sender, Microsoft::UI::Xaml::RoutedEventArgs const& args);
@@ -34,6 +35,7 @@ namespace winrt::image_channel_viewer::implementation
         };
 
         winrt::Windows::Foundation::IAsyncAction LoadImageAsync();
+        winrt::Windows::Foundation::IAsyncAction ShowAboutDialogAsync();
         void InitializeModes();
         void Populatechannels();
         winrt::fire_and_forget RefreshPreview();

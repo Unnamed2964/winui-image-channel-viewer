@@ -23,8 +23,13 @@
             </Grid.RowDefinitions>
 
             <Grid Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
                 <!-- "24epx: Spacing between content sections." specify in the "WinUI 3 Gallery" App -->
-                <StackPanel Orientation="Horizontal" Margin="12,0" Spacing="24">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="12,0" Spacing="24">
                     <Button
                         x:Name="OpenImageButton"
                         Height="32"
@@ -72,6 +77,21 @@
                             VerticalAlignment="Center" />
                     </StackPanel>
                 </StackPanel>
+
+                <Button
+                    Grid.Column="1"
+                    Margin="0,0,12,0"
+                    MinWidth="108"
+                    Height="32"
+                    Padding="12,0"
+                    Click="OnAboutClick"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE946;" />
+                        <TextBlock Text="关于" />
+                    </StackPanel>
+                </Button>
             </Grid>
 
             <Border Grid.Row="1" Height="1" Background="{ThemeResource CardStrokeColorDefaultBrush}" />

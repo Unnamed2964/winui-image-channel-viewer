@@ -10,6 +10,8 @@ using namespace Microsoft::UI::Xaml;
 
 namespace
 {
+    constexpr std::wstring_view AppVersion = L"1.0.0.0";
+
     struct __declspec(uuid("905a0fef-bc53-11df-8c49-001e4fc686da")) IBufferByteAccess : ::IUnknown
     {
         virtual HRESULT __stdcall Buffer(uint8_t** value) = 0;
@@ -322,6 +324,13 @@ namespace winrt::image_channel_viewer::implementation
         LoadImageAsync();
     }
 
+    void MainWindow::OnAboutClick(
+        [[maybe_unused]] IInspectable const& sender,
+        [[maybe_unused]] RoutedEventArgs const& args)
+    {
+        ShowAboutDialogAsync();
+    }
+
     void MainWindow::OnColorModeItemClick(
         [[maybe_unused]] IInspectable const& sender, 
         [[maybe_unused]] RoutedEventArgs const& args)
@@ -441,6 +450,67 @@ namespace winrt::image_channel_viewer::implementation
         m_savedVerticalOffset = 0.0;
         EmptyStatePanel().Visibility(Visibility::Collapsed);
         RefreshPreview();
+    }
+
+    Windows::Foundation::IAsyncAction MainWindow::ShowAboutDialogAsync()
+    {
+        Controls::ContentDialog dialog;
+        dialog.Title(box_value(L"关于 Image Channel Viewer"));
+        dialog.PrimaryButtonText(L"关闭");
+        dialog.DefaultButton(Controls::ContentDialogButton::Primary);
+        dialog.XamlRoot(Content().XamlRoot());
+
+        Microsoft::UI::Xaml::Controls::StackPanel contentPanel;
+        contentPanel.Spacing(12);
+
+        Microsoft::UI::Xaml::Controls::TextBlock versionText;
+        versionText.Text(hstring{ L"版本：" } + hstring{ AppVersion });
+        versionText.TextWrapping(TextWrapping::WrapWholeWords);
+        contentPanel.Children().Append(versionText);
+
+        Microsoft::UI::Xaml::Controls::RichTextBlock authorText;
+        authorText.TextWrapping(TextWrapping::WrapWholeWords);
+
+        Microsoft::UI::Xaml::Documents::Paragraph authorParagraph;
+
+        Microsoft::UI::Xaml::Documents::Run authorPrefix;
+        authorPrefix.Text(L"由 Umaichi/Unnamed2964 制作. 由 ");
+        authorParagraph.Inlines().Append(authorPrefix);
+
+        Microsoft::UI::Xaml::Documents::Hyperlink mitLicenseLink;
+        mitLicenseLink.NavigateUri(Windows::Foundation::Uri(L"https://github.com/Unnamed2964/winui-image-channel-viewer/blob/master/LICENSE"));
+
+        Microsoft::UI::Xaml::Documents::Run mitLicenseRun;
+        mitLicenseRun.Text(L"MIT 许可证");
+        mitLicenseLink.Inlines().Append(mitLicenseRun);
+        authorParagraph.Inlines().Append(mitLicenseLink);
+
+        Microsoft::UI::Xaml::Documents::Run authorSuffix;
+        authorSuffix.Text(L" 许可给你.");
+        authorParagraph.Inlines().Append(authorSuffix);
+
+        authorText.Blocks().Append(authorParagraph);
+        contentPanel.Children().Append(authorText);
+
+        Microsoft::UI::Xaml::Controls::StackPanel linksPanel;
+
+        Microsoft::UI::Xaml::Controls::HyperlinkButton githubLink;
+        githubLink.Content(box_value(L"GitHub 主页"));
+        githubLink.NavigateUri(Windows::Foundation::Uri(L"https://github.com/Unnamed2964"));
+        githubLink.HorizontalAlignment(HorizontalAlignment::Left);
+        linksPanel.Children().Append(githubLink);
+
+        Microsoft::UI::Xaml::Controls::HyperlinkButton websiteLink;
+        websiteLink.Content(box_value(L"个人网站"));
+        websiteLink.NavigateUri(Windows::Foundation::Uri(L"https://umamichi.moe"));
+        websiteLink.HorizontalAlignment(HorizontalAlignment::Left);
+        linksPanel.Children().Append(websiteLink);
+
+        contentPanel.Children().Append(linksPanel);
+
+        dialog.Content(contentPanel);
+
+        co_await dialog.ShowAsync();
     }
 
     void MainWindow::InitializeModes()
