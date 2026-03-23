@@ -1,6 +1,14 @@
-本项目是一个基于 Modern C++ (>= C++20) + C++/WinRT + WinUI 3 的图片通道查看器，界面风格偏向现代 Windows 11 桌面应用。
+# 图片通道查看器
 
-目前已实现：
+## 简介
+
+本项目是一个基于 Modern C++ (>= C++20) + C++/WinRT + WinUI 3 的图片通道查看器，现代 Windows 11 风格的桌面应用。
+
+## 运行截图
+
+<img width="898.5" height="549.5" alt="image" src="https://github.com/user-attachments/assets/0621721d-d21d-4abe-aed9-48e3da5c4e58" />
+
+## 功能
 
 - 选择并加载常见图片格式：PNG、JPEG、BMP、GIF、TIFF、WebP
 - 颜色模式切换：原图、RGB、HSL、HSV、CMYK、LAB
@@ -50,23 +58,9 @@
 也可以通过 MSBuild 构建：
 
 ```powershell
-& "C:\Program Files\Microsoft Visual Studio\18\Professional\MSBuild\Current\Bin\MSBuild.exe" ".\image_channel_viewer.sln" /restore /t:Build /p:Configuration=Debug /p:Platform=x64
+& "C:\Program Files\Microsoft Visual Studio\18\Professional\MSBuild\Current\Bin\MSBuild.exe" ".\image_channel_viewer.sln" /restore /t:Build /p:Configuration=Release /p:Platform=x64
 ```
 
-## 当前实现说明
+## 附注
 
-- RGB 和 CMYK 通道支持彩色/灰度两种观察方式
-- HSL / HSV 中的 H 通道使用高饱和色相预览
-- LAB 中的 L、a、b 当前采用单通道可视化映射
-- 预览图像在内存中转换为 BGRA8 后再进行逐像素渲染
-
-## 已验证
-
-已在当前机器上通过以下命令成功构建：
-
-```powershell
-MSBuild.exe .\image_channel_viewer.sln /t:Build /p:Configuration=Debug /p:Platform=x64
-```========================
-
-nent_viewer.sln /t:Build /p:Configuration=Debug /p:Platform=x64
-```
+本项目许多代码由 Vibe Coding 生成，你可以在提交记录中查阅主要的 prompt。但是本人依然对代码的最终质量负责。
