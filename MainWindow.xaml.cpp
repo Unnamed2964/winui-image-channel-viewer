@@ -12,8 +12,6 @@ using namespace Microsoft::UI::Xaml;
 
 namespace
 {
-    using ContinuousPixel = ::image_channel_viewer::ContinuousPixelBuffer::Pixel;
-
     struct __declspec(uuid("905a0fef-bc53-11df-8c49-001e4fc686da")) IBufferByteAccess : ::IUnknown
     {
         virtual HRESULT __stdcall Buffer(uint8_t** value) = 0;
@@ -25,42 +23,6 @@ namespace
     };
 
     using ColorMode = winrt::image_channel_viewer::implementation::ColorMode;
-
-    struct PixelF
-    {
-        float r;
-        float g;
-        float b;
-    };
-
-    struct Hsl
-    {
-        float h;
-        float s;
-        float l;
-    };
-
-    struct Hsv
-    {
-        float h;
-        float s;
-        float v;
-    };
-
-    struct Cmyk
-    {
-        float c;
-        float m;
-        float y;
-        float k;
-    };
-
-    struct Lab
-    {
-        float l;
-        float a;
-        float b;
-    };
 
     __forceinline float Clamp01(float value)
     {
@@ -97,7 +59,13 @@ namespace
         return p;
     }
 
-    __forceinline PixelF HslToRgb(float hue, float saturation, float lightness)
+    __forceinline void HslToRgb(
+        float hue,
+        float saturation,
+        float lightness,
+        float& red,
+        float& green,
+        float& blue)
     {
         hue = std::fmod(hue, 360.0f);
         if (hue < 0.0f)
@@ -108,19 +76,26 @@ namespace
         const float normalizedHue = hue / 360.0f;
         if (saturation <= 0.0f)
         {
-            return { lightness, lightness, lightness };
+            red = lightness;
+            green = lightness;
+            blue = lightness;
+            return;
         }
 
         const float q = lightness < 0.5f ? lightness * (1.0f + saturation) : lightness + saturation - lightness * saturation;
         const float p = 2.0f * lightness - q;
-        return {
-            HueToRgb(p, q, normalizedHue + 1.0f / 3.0f),
-            HueToRgb(p, q, normalizedHue),
-            HueToRgb(p, q, normalizedHue - 1.0f / 3.0f),
-        };
+        red = HueToRgb(p, q, normalizedHue + 1.0f / 3.0f);
+        green = HueToRgb(p, q, normalizedHue);
+        blue = HueToRgb(p, q, normalizedHue - 1.0f / 3.0f);
     }
 
-    __forceinline PixelF HsvToRgb(float hue, float saturation, float value)
+    __forceinline void HsvToRgb(
+        float hue,
+        float saturation,
+        float value,
+        float& red,
+        float& green,
+        float& blue)
     {
         hue = std::fmod(hue, 360.0f);
         if (hue < 0.0f)
@@ -130,14 +105,17 @@ namespace
 
         if (saturation <= 0.0f)
         {
-            return { value, value, value };
+            red = value;
+            green = value;
+            blue = value;
+            return;
         }
 
         const float chroma = value * saturation;
         const float huePrime = hue / 60.0f;
-        float red = 0.0f;
-        float green = 0.0f;
-        float blue = 0.0f;
+        red = 0.0f;
+        green = 0.0f;
+        blue = 0.0f;
 
         if (huePrime < 1.0f)
         {
@@ -171,101 +149,121 @@ namespace
         }
 
         const float match = value - chroma;
-        return { red + match, green + match, blue + match };
+        red += match;
+        green += match;
+        blue += match;
     }
 
-    __forceinline Hsl RgbToHsl(PixelF pixel)
+    __forceinline void RgbToHsl(
+        float red,
+        float green,
+        float blue,
+        float& hue,
+        float& saturation,
+        float& lightness)
     {
-        const float maxValue = std::max({ pixel.r, pixel.g, pixel.b });
-        const float minValue = std::min({ pixel.r, pixel.g, pixel.b });
+        const float maxValue = std::max({ red, green, blue });
+        const float minValue = std::min({ red, green, blue });
         const float delta = maxValue - minValue;
-        const float lightness = (maxValue + minValue) * 0.5f;
-
-        Hsl result{};
-        result.l = lightness;
+        hue = 0.0f;
+        saturation = 0.0f;
+        lightness = (maxValue + minValue) * 0.5f;
 
         if (delta <= std::numeric_limits<float>::epsilon())
         {
-            return result;
+            return;
         }
 
-        result.s = lightness > 0.5f ? delta / (2.0f - maxValue - minValue) : delta / (maxValue + minValue);
+        saturation = lightness > 0.5f ? delta / (2.0f - maxValue - minValue) : delta / (maxValue + minValue);
 
-        if (maxValue == pixel.r)
+        if (maxValue == red)
         {
-            result.h = 60.0f * ((pixel.g - pixel.b) / delta);
+            hue = 60.0f * ((green - blue) / delta);
         }
-        else if (maxValue == pixel.g)
+        else if (maxValue == green)
         {
-            result.h = 60.0f * (((pixel.b - pixel.r) / delta) + 2.0f);
+            hue = 60.0f * (((blue - red) / delta) + 2.0f);
         }
         else
         {
-            result.h = 60.0f * (((pixel.r - pixel.g) / delta) + 4.0f);
+            hue = 60.0f * (((red - green) / delta) + 4.0f);
         }
 
-        if (result.h < 0.0f)
+        if (hue < 0.0f)
         {
-            result.h += 360.0f;
+            hue += 360.0f;
         }
-        return result;
     }
 
-    __forceinline Hsv RgbToHsv(PixelF pixel)
+    __forceinline void RgbToHsv(
+        float red,
+        float green,
+        float blue,
+        float& hue,
+        float& saturation,
+        float& value)
     {
-        const float maxValue = std::max({ pixel.r, pixel.g, pixel.b });
-        const float minValue = std::min({ pixel.r, pixel.g, pixel.b });
+        const float maxValue = std::max({ red, green, blue });
+        const float minValue = std::min({ red, green, blue });
         const float delta = maxValue - minValue;
 
-        Hsv result{};
-        result.v = maxValue;
+        hue = 0.0f;
+        saturation = 0.0f;
+        value = maxValue;
 
         if (maxValue <= std::numeric_limits<float>::epsilon())
         {
-            return result;
+            return;
         }
 
-        result.s = delta / maxValue;
+        saturation = delta / maxValue;
         if (delta <= std::numeric_limits<float>::epsilon())
         {
-            return result;
+            return;
         }
 
-        if (maxValue == pixel.r)
+        if (maxValue == red)
         {
-            result.h = 60.0f * ((pixel.g - pixel.b) / delta);
+            hue = 60.0f * ((green - blue) / delta);
         }
-        else if (maxValue == pixel.g)
+        else if (maxValue == green)
         {
-            result.h = 60.0f * (((pixel.b - pixel.r) / delta) + 2.0f);
+            hue = 60.0f * (((blue - red) / delta) + 2.0f);
         }
         else
         {
-            result.h = 60.0f * (((pixel.r - pixel.g) / delta) + 4.0f);
+            hue = 60.0f * (((red - green) / delta) + 4.0f);
         }
 
-        if (result.h < 0.0f)
+        if (hue < 0.0f)
         {
-            result.h += 360.0f;
+            hue += 360.0f;
         }
-        return result;
     }
 
-    __forceinline Cmyk RgbToCmyk(PixelF pixel)
+    __forceinline void RgbToCmyk(
+        float red,
+        float green,
+        float blue,
+        float& cyan,
+        float& magenta,
+        float& yellow,
+        float& black)
     {
-        const float black = 1.0f - std::max({ pixel.r, pixel.g, pixel.b });
+        black = 1.0f - std::max({ red, green, blue });
         if (black >= 1.0f - std::numeric_limits<float>::epsilon())
         {
-            return { 0.0f, 0.0f, 0.0f, 1.0f };
+            cyan = 0.0f;
+            magenta = 0.0f;
+            yellow = 0.0f;
+            black = 1.0f;
+            return;
         }
 
         const float denominator = 1.0f - black;
-        return {
-            (1.0f - pixel.r - black) / denominator,
-            (1.0f - pixel.g - black) / denominator,
-            (1.0f - pixel.b - black) / denominator,
-            black,
-        };
+        cyan = (1.0f - red - black) / denominator;
+        magenta = (1.0f - green - black) / denominator;
+        yellow = (1.0f - blue - black) / denominator;
     }
 
     __forceinline float LabPivot(float value)
@@ -273,11 +271,17 @@ namespace
         return value > 0.008856f ? std::cbrt(value) : (7.787f * value) + (16.0f / 116.0f);
     }
 
-    __forceinline Lab RgbToLab(PixelF pixel)
+    __forceinline void RgbToLab(
+        float red,
+        float green,
+        float blue,
+        float& lightness,
+        float& a,
+        float& b)
     {
-        const float linearRed = SrgbToLinear(pixel.r);
-        const float linearGreen = SrgbToLinear(pixel.g);
-        const float linearBlue = SrgbToLinear(pixel.b);
+        const float linearRed = SrgbToLinear(red);
+        const float linearGreen = SrgbToLinear(green);
+        const float linearBlue = SrgbToLinear(blue);
 
         const float x = linearRed * 0.4124564f + linearGreen * 0.3575761f + linearBlue * 0.1804375f;
         const float y = linearRed * 0.2126729f + linearGreen * 0.7151522f + linearBlue * 0.0721750f;
@@ -287,179 +291,177 @@ namespace
         const float fy = LabPivot(y / 1.0f);
         const float fz = LabPivot(z / 1.08883f);
 
-        return {
-            (116.0f * fy) - 16.0f,
-            500.0f * (fx - fy),
-            200.0f * (fy - fz),
-        };
+        lightness = (116.0f * fy) - 16.0f;
+        a = 500.0f * (fx - fy);
+        b = 200.0f * (fy - fz);
     }
 
-    __forceinline ContinuousPixel ComposePixel(float red, float green, float blue, float alpha)
+    __forceinline void ComposePixel(
+        float red,
+        float green,
+        float blue,
+        float alpha,
+        float& mappedRed,
+        float& mappedGreen,
+        float& mappedBlue,
+        float& mappedAlpha)
     {
-        return {
-            Clamp01(red),
-            Clamp01(green),
-            Clamp01(blue),
-            Clamp01(alpha),
-        };
+        mappedRed = Clamp01(red);
+        mappedGreen = Clamp01(green);
+        mappedBlue = Clamp01(blue);
+        mappedAlpha = Clamp01(alpha);
     }
 
-    __forceinline ContinuousPixel LoadPixel(
-        float const* __restrict sourceRed,
-        float const* __restrict sourceGreen,
-        float const* __restrict sourceBlue,
-        float const* __restrict sourceAlpha,
-        size_t pixelIndex)
+    template<ColorMode colorMode, uint32_t channelIndex, bool showGrayscale>
+    __forceinline void MapPixel(
+        float sourceRed,
+        float sourceGreen,
+        float sourceBlue,
+        float sourceAlpha,
+        float& mappedRed,
+        float& mappedGreen,
+        float& mappedBlue,
+        float& mappedAlpha)
     {
-        return {
-            sourceRed[pixelIndex],
-            sourceGreen[pixelIndex],
-            sourceBlue[pixelIndex],
-            sourceAlpha[pixelIndex],
-        };
-    }
-
-    __forceinline void StorePixel(
-        float* __restrict previewRed,
-        float* __restrict previewGreen,
-        float* __restrict previewBlue,
-        float* __restrict previewAlpha,
-        size_t pixelIndex,
-        ContinuousPixel const& pixel)
-    {
-        previewRed[pixelIndex] = pixel[0];
-        previewGreen[pixelIndex] = pixel[1];
-        previewBlue[pixelIndex] = pixel[2];
-        previewAlpha[pixelIndex] = pixel[3];
-    }
-
-    template<ColorMode colorMode, uint32_t channelIndex>
-    __forceinline ContinuousPixel MapPixel(
-        ContinuousPixel const& sourcePixel,
-        bool showGrayscale)
-    {
-        const PixelF pixel{
-            sourcePixel[0],
-            sourcePixel[1],
-            sourcePixel[2],
-        };
-        const float alpha = sourcePixel[3];
+        const float alpha = sourceAlpha;
 
         if constexpr (colorMode == ColorMode::Original)
         {
             static_assert(channelIndex == 0);
-            return sourcePixel;
+            mappedRed = sourceRed;
+            mappedGreen = sourceGreen;
+            mappedBlue = sourceBlue;
+            mappedAlpha = sourceAlpha;
         }
         else if constexpr (colorMode == ColorMode::RGB)
         {
             static_assert(channelIndex < 3);
 
-            const float channelValue = [=]()
-                {
-                    if constexpr (channelIndex == 0)
-                    {
-                        return pixel.r;
-                    }
-                    else if constexpr (channelIndex == 1)
-                    {
-                        return pixel.g;
-                    }
-                    else
-                    {
-                        return pixel.b;
-                    }
-                }();
+            float channelValue;
 
-            if (showGrayscale)
+            if constexpr (channelIndex == 0)
             {
-                return ComposePixel(channelValue, channelValue, channelValue, alpha);
+                channelValue = sourceRed;
+            }
+            else if constexpr (channelIndex == 1)
+            {
+                channelValue = sourceGreen;
+            }
+            else
+            {
+                channelValue = sourceBlue;
             }
 
-            return ComposePixel(
+            if constexpr (showGrayscale)
+            {
+                ComposePixel(channelValue, channelValue, channelValue, alpha, mappedRed, mappedGreen, mappedBlue, mappedAlpha);
+                return;
+            }
+
+            ComposePixel(
                 channelIndex == 0 ? channelValue : 0.0f,
                 channelIndex == 1 ? channelValue : 0.0f,
                 channelIndex == 2 ? channelValue : 0.0f,
-                alpha);
+                alpha,
+                mappedRed,
+                mappedGreen,
+                mappedBlue,
+                mappedAlpha);
         }
         else if constexpr (colorMode == ColorMode::HSL)
         {
             static_assert(channelIndex < 3);
 
-            const auto hsl = RgbToHsl(pixel);
+            float hue = 0.0f;
+            float saturation = 0.0f;
+            float lightness = 0.0f;
+            RgbToHsl(sourceRed, sourceGreen, sourceBlue, hue, saturation, lightness);
             if constexpr (channelIndex == 0)
             {
-                const auto huePixel = HslToRgb(hsl.h, 1.0f, 0.5f);
-                return ComposePixel(huePixel.r, huePixel.g, huePixel.b, alpha);
+                float red = 0.0f;
+                float green = 0.0f;
+                float blue = 0.0f;
+                HslToRgb(hue, 1.0f, 0.5f, red, green, blue);
+                ComposePixel(red, green, blue, alpha, mappedRed, mappedGreen, mappedBlue, mappedAlpha);
             }
             else if constexpr (channelIndex == 1)
             {
-                return ComposePixel(hsl.s, hsl.s, hsl.s, alpha);
+                ComposePixel(saturation, saturation, saturation, alpha, mappedRed, mappedGreen, mappedBlue, mappedAlpha);
             }
             else
             {
-                return ComposePixel(hsl.l, hsl.l, hsl.l, alpha);
+                ComposePixel(lightness, lightness, lightness, alpha, mappedRed, mappedGreen, mappedBlue, mappedAlpha);
             }
         }
         else if constexpr (colorMode == ColorMode::HSV)
         {
             static_assert(channelIndex < 3);
 
-            const auto hsv = RgbToHsv(pixel);
+            float hue = 0.0f;
+            float saturation = 0.0f;
+            float value = 0.0f;
+            RgbToHsv(sourceRed, sourceGreen, sourceBlue, hue, saturation, value);
             if constexpr (channelIndex == 0)
             {
-                const auto huePixel = HsvToRgb(hsv.h, 1.0f, 1.0f);
-                return ComposePixel(huePixel.r, huePixel.g, huePixel.b, alpha);
+                float red = 0.0f;
+                float green = 0.0f;
+                float blue = 0.0f;
+                HsvToRgb(hue, 1.0f, 1.0f, red, green, blue);
+                ComposePixel(red, green, blue, alpha, mappedRed, mappedGreen, mappedBlue, mappedAlpha);
             }
             else if constexpr (channelIndex == 1)
             {
-                return ComposePixel(hsv.s, hsv.s, hsv.s, alpha);
+                ComposePixel(saturation, saturation, saturation, alpha, mappedRed, mappedGreen, mappedBlue, mappedAlpha);
             }
             else
             {
-                return ComposePixel(hsv.v, hsv.v, hsv.v, alpha);
+                ComposePixel(value, value, value, alpha, mappedRed, mappedGreen, mappedBlue, mappedAlpha);
             }
         }
         else if constexpr (colorMode == ColorMode::CMYK)
         {
             static_assert(channelIndex < 4);
 
-            const auto cmyk = RgbToCmyk(pixel);
-            const float channelValue = [=]()
-                {
-                    if constexpr (channelIndex == 0)
-                    {
-                        return cmyk.c;
-                    }
-                    else if constexpr (channelIndex == 1)
-                    {
-                        return cmyk.m;
-                    }
-                    else if constexpr (channelIndex == 2)
-                    {
-                        return cmyk.y;
-                    }
-                    else
-                    {
-                        return cmyk.k;
-                    }
-                }();
-
-            if (showGrayscale || channelIndex == 3)
+            float cyan = 0.0f;
+            float magenta = 0.0f;
+            float yellow = 0.0f;
+            float black = 0.0f;
+            RgbToCmyk(sourceRed, sourceGreen, sourceBlue, cyan, magenta, yellow, black);
+            float channelValue;
+            if constexpr (channelIndex == 0)
             {
-                return ComposePixel(channelValue, channelValue, channelValue, alpha);
+                channelValue = cyan;
+            }
+            else if constexpr (channelIndex == 1)
+            {
+                channelValue = magenta;
+            }
+            else if constexpr (channelIndex == 2)
+            {
+                channelValue = yellow;
+            }
+            else
+            {
+                channelValue = black;
+            }
+
+            if constexpr (showGrayscale || channelIndex == 3)
+            {
+                ComposePixel(channelValue, channelValue, channelValue, alpha, mappedRed, mappedGreen, mappedBlue, mappedAlpha);
+                return;
             }
 
             if constexpr (channelIndex == 0)
             {
-                return ComposePixel(0.0f, channelValue, channelValue, alpha);
+                ComposePixel(0.0f, channelValue, channelValue, alpha, mappedRed, mappedGreen, mappedBlue, mappedAlpha);
             }
             else if constexpr (channelIndex == 1)
             {
-                return ComposePixel(channelValue, 0.0f, channelValue, alpha);
+                ComposePixel(channelValue, 0.0f, channelValue, alpha, mappedRed, mappedGreen, mappedBlue, mappedAlpha);
             }
             else
             {
-                return ComposePixel(channelValue, channelValue, 0.0f, alpha);
+                ComposePixel(channelValue, channelValue, 0.0f, alpha, mappedRed, mappedGreen, mappedBlue, mappedAlpha);
             }
         }
         else
@@ -467,26 +469,29 @@ namespace
             static_assert(colorMode == ColorMode::LAB);
             static_assert(channelIndex < 3);
 
-            const auto lab = RgbToLab(pixel);
+            float lightness = 0.0f;
+            float a = 0.0f;
+            float b = 0.0f;
+            RgbToLab(sourceRed, sourceGreen, sourceBlue, lightness, a, b);
             if constexpr (channelIndex == 0)
             {
-                const float lightness = Clamp01(lab.l / 100.0f);
-                return ComposePixel(lightness, lightness, lightness, alpha);
+                const float mappedLightness = Clamp01(lightness / 100.0f);
+                ComposePixel(mappedLightness, mappedLightness, mappedLightness, alpha, mappedRed, mappedGreen, mappedBlue, mappedAlpha);
             }
             else if constexpr (channelIndex == 1)
             {
-                const float value = Clamp01((lab.a + 128.0f) / 255.0f);
-                return ComposePixel(value, value, value, alpha);
+                const float value = Clamp01((a + 128.0f) / 255.0f);
+                ComposePixel(value, value, value, alpha, mappedRed, mappedGreen, mappedBlue, mappedAlpha);
             }
             else
             {
-                const float value = Clamp01((lab.b + 128.0f) / 255.0f);
-                return ComposePixel(value, value, value, alpha);
+                const float value = Clamp01((b + 128.0f) / 255.0f);
+                ComposePixel(value, value, value, alpha, mappedRed, mappedGreen, mappedBlue, mappedAlpha);
             }
         }
     }
 
-    template<ColorMode colorMode, uint32_t mappedChannelIndex>
+    template<ColorMode colorMode, uint32_t mappedChannelIndex, bool showGrayscale>
     __forceinline void RenderPreviewWork(
         float const* __restrict sourceRed,
         float const* __restrict sourceGreen,
@@ -497,14 +502,33 @@ namespace
         float* __restrict previewBlue,
         float* __restrict previewAlpha,
         size_t beginPixelIndex,
-        size_t endPixelIndex,
-        bool showGrayscale)
+        size_t endPixelIndex)
     {
         for (size_t pixelIndex = beginPixelIndex; pixelIndex < endPixelIndex; ++pixelIndex)
         {
-            const auto sourcePixel = LoadPixel(sourceRed, sourceGreen, sourceBlue, sourceAlpha, pixelIndex);
-            const auto mappedPixel = MapPixel<colorMode, mappedChannelIndex>(sourcePixel, showGrayscale);
-            StorePixel(previewRed, previewGreen, previewBlue, previewAlpha, pixelIndex, mappedPixel);
+            const float red = sourceRed[pixelIndex];
+            const float green = sourceGreen[pixelIndex];
+            const float blue = sourceBlue[pixelIndex];
+            const float alpha = sourceAlpha[pixelIndex];
+
+            float mappedRed = 0.0f;
+            float mappedGreen = 0.0f;
+            float mappedBlue = 0.0f;
+            float mappedAlpha = 0.0f;
+            MapPixel<colorMode, mappedChannelIndex, showGrayscale>(
+                red,
+                green,
+                blue,
+                alpha,
+                mappedRed,
+                mappedGreen,
+                mappedBlue,
+                mappedAlpha);
+
+            previewRed[pixelIndex] = mappedRed;
+            previewGreen[pixelIndex] = mappedGreen;
+            previewBlue[pixelIndex] = mappedBlue;
+            previewAlpha[pixelIndex] = mappedAlpha;
         }
     }
 }
@@ -850,10 +874,10 @@ namespace winrt::image_channel_viewer::implementation
                     }
                 };
 
-#define RENDER_TEMPLATE_INSTANCE(modeValue, channelValue) \
+#define RENDER_TEMPLATE_INSTANCE(modeValue, channelValue, grayscaleValue) \
             renderChunk([&](size_t beginPixelIndex, size_t endPixelIndex) \
                 { \
-                    RenderPreviewWork<modeValue, channelValue>( \
+                    RenderPreviewWork<modeValue, channelValue, grayscaleValue>( \
                         sourceRed, \
                         sourceGreen, \
                         sourceBlue, \
@@ -863,27 +887,36 @@ namespace winrt::image_channel_viewer::implementation
                         previewBlue, \
                         previewAlpha, \
                         beginPixelIndex, \
-                        endPixelIndex, \
-                        showGrayscale); \
+                        endPixelIndex); \
                 })
+
+#define RENDER_GRAYSCALE_VARIANT(modeValue, channelValue) \
+            if (showGrayscale) \
+            { \
+                RENDER_TEMPLATE_INSTANCE(modeValue, channelValue, true); \
+            } \
+            else \
+            { \
+                RENDER_TEMPLATE_INSTANCE(modeValue, channelValue, false); \
+            }
 
             switch (selectedMode)
             {
             case ColorMode::Original:
-                RENDER_TEMPLATE_INSTANCE(ColorMode::Original, 0);
+                RENDER_GRAYSCALE_VARIANT(ColorMode::Original, 0);
                 break;
 
             case ColorMode::RGB:
                 switch (channelIndex)
                 {
                 case 0:
-                    RENDER_TEMPLATE_INSTANCE(ColorMode::RGB, 0);
+                    RENDER_GRAYSCALE_VARIANT(ColorMode::RGB, 0);
                     break;
                 case 1:
-                    RENDER_TEMPLATE_INSTANCE(ColorMode::RGB, 1);
+                    RENDER_GRAYSCALE_VARIANT(ColorMode::RGB, 1);
                     break;
                 default:
-                    RENDER_TEMPLATE_INSTANCE(ColorMode::RGB, 2);
+                    RENDER_GRAYSCALE_VARIANT(ColorMode::RGB, 2);
                     break;
                 }
                 break;
@@ -892,13 +925,13 @@ namespace winrt::image_channel_viewer::implementation
                 switch (channelIndex)
                 {
                 case 0:
-                    RENDER_TEMPLATE_INSTANCE(ColorMode::HSL, 0);
+                    RENDER_GRAYSCALE_VARIANT(ColorMode::HSL, 0);
                     break;
                 case 1:
-                    RENDER_TEMPLATE_INSTANCE(ColorMode::HSL, 1);
+                    RENDER_GRAYSCALE_VARIANT(ColorMode::HSL, 1);
                     break;
                 default:
-                    RENDER_TEMPLATE_INSTANCE(ColorMode::HSL, 2);
+                    RENDER_GRAYSCALE_VARIANT(ColorMode::HSL, 2);
                     break;
                 }
                 break;
@@ -907,13 +940,13 @@ namespace winrt::image_channel_viewer::implementation
                 switch (channelIndex)
                 {
                 case 0:
-                    RENDER_TEMPLATE_INSTANCE(ColorMode::HSV, 0);
+                    RENDER_GRAYSCALE_VARIANT(ColorMode::HSV, 0);
                     break;
                 case 1:
-                    RENDER_TEMPLATE_INSTANCE(ColorMode::HSV, 1);
+                    RENDER_GRAYSCALE_VARIANT(ColorMode::HSV, 1);
                     break;
                 default:
-                    RENDER_TEMPLATE_INSTANCE(ColorMode::HSV, 2);
+                    RENDER_GRAYSCALE_VARIANT(ColorMode::HSV, 2);
                     break;
                 }
                 break;
@@ -922,16 +955,16 @@ namespace winrt::image_channel_viewer::implementation
                 switch (channelIndex)
                 {
                 case 0:
-                    RENDER_TEMPLATE_INSTANCE(ColorMode::CMYK, 0);
+                    RENDER_GRAYSCALE_VARIANT(ColorMode::CMYK, 0);
                     break;
                 case 1:
-                    RENDER_TEMPLATE_INSTANCE(ColorMode::CMYK, 1);
+                    RENDER_GRAYSCALE_VARIANT(ColorMode::CMYK, 1);
                     break;
                 case 2:
-                    RENDER_TEMPLATE_INSTANCE(ColorMode::CMYK, 2);
+                    RENDER_GRAYSCALE_VARIANT(ColorMode::CMYK, 2);
                     break;
                 default:
-                    RENDER_TEMPLATE_INSTANCE(ColorMode::CMYK, 3);
+                    RENDER_GRAYSCALE_VARIANT(ColorMode::CMYK, 3);
                     break;
                 }
                 break;
@@ -940,18 +973,19 @@ namespace winrt::image_channel_viewer::implementation
                 switch (channelIndex)
                 {
                 case 0:
-                    RENDER_TEMPLATE_INSTANCE(ColorMode::LAB, 0);
+                    RENDER_GRAYSCALE_VARIANT(ColorMode::LAB, 0);
                     break;
                 case 1:
-                    RENDER_TEMPLATE_INSTANCE(ColorMode::LAB, 1);
+                    RENDER_GRAYSCALE_VARIANT(ColorMode::LAB, 1);
                     break;
                 default:
-                    RENDER_TEMPLATE_INSTANCE(ColorMode::LAB, 2);
+                    RENDER_GRAYSCALE_VARIANT(ColorMode::LAB, 2);
                     break;
                 }
                 break;
             }
 
+#undef RENDER_GRAYSCALE_VARIANT
 #undef RENDER_TEMPLATE_INSTANCE
 
             // switch back to UI thread

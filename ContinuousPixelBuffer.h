@@ -1,7 +1,6 @@
 #pragma once
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -19,9 +18,6 @@ namespace image_channel_viewer
 
     class ContinuousPixelBuffer
     {
-    public:
-        using Pixel = std::array<float, 4>;
-
     private:
         struct Mapping
         {
@@ -291,22 +287,20 @@ namespace image_channel_viewer
             return m_alphaChannel.data();
         }
 
-        Pixel pixel(size_t pixelIndex) const noexcept
+        void pixel(size_t pixelIndex, float& red, float& green, float& blue, float& alpha) const noexcept
         {
-            return {
-                m_redChannel[pixelIndex],
-                m_greenChannel[pixelIndex],
-                m_blueChannel[pixelIndex],
-                m_alphaChannel[pixelIndex],
-            };
+            red = m_redChannel[pixelIndex];
+            green = m_greenChannel[pixelIndex];
+            blue = m_blueChannel[pixelIndex];
+            alpha = m_alphaChannel[pixelIndex];
         }
 
-        void set_pixel(size_t pixelIndex, Pixel const& pixel) noexcept
+        void set_pixel(size_t pixelIndex, float red, float green, float blue, float alpha) noexcept
         {
-            m_redChannel[pixelIndex] = pixel[0];
-            m_greenChannel[pixelIndex] = pixel[1];
-            m_blueChannel[pixelIndex] = pixel[2];
-            m_alphaChannel[pixelIndex] = pixel[3];
+            m_redChannel[pixelIndex] = red;
+            m_greenChannel[pixelIndex] = green;
+            m_blueChannel[pixelIndex] = blue;
+            m_alphaChannel[pixelIndex] = alpha;
         }
 
         bool empty() const noexcept
