@@ -23,7 +23,7 @@ namespace
     {
         virtual HRESULT __stdcall GetBuffer(uint8_t** value, uint32_t* capacity) = 0;
     };
-
+    
     struct PixelF
     {
         float r;
@@ -133,7 +133,6 @@ namespace
 
         const float chroma = value * saturation;
         const float huePrime = hue / 60.0f;
-        const float x = chroma * (1.0f - std::fabs(std::fmod(huePrime, 2.0f) - 1.0f));
         float red = 0.0f;
         float green = 0.0f;
         float blue = 0.0f;
@@ -141,32 +140,32 @@ namespace
         if (huePrime < 1.0f)
         {
             red = chroma;
-            green = x;
+            green = chroma * huePrime;
         }
         else if (huePrime < 2.0f)
         {
-            red = x;
+            red = chroma * (2.0f - huePrime);
             green = chroma;
         }
         else if (huePrime < 3.0f)
         {
             green = chroma;
-            blue = x;
+            blue = chroma * (huePrime - 2.0f);
         }
         else if (huePrime < 4.0f)
         {
-            green = x;
+            green = chroma * (4.0f - huePrime);
             blue = chroma;
         }
         else if (huePrime < 5.0f)
         {
-            red = x;
+            red = chroma * (huePrime - 4.0f);
             blue = chroma;
         }
         else
         {
             red = chroma;
-            blue = x;
+            blue = chroma * (6.0f - huePrime);
         }
 
         const float match = value - chroma;
@@ -192,7 +191,7 @@ namespace
 
         if (maxValue == pixel.r)
         {
-            result.h = 60.0f * std::fmod(((pixel.g - pixel.b) / delta), 6.0f);
+            result.h = 60.0f * ((pixel.g - pixel.b) / delta);
         }
         else if (maxValue == pixel.g)
         {
@@ -232,7 +231,7 @@ namespace
 
         if (maxValue == pixel.r)
         {
-            result.h = 60.0f * std::fmod(((pixel.g - pixel.b) / delta), 6.0f);
+            result.h = 60.0f * ((pixel.g - pixel.b) / delta);
         }
         else if (maxValue == pixel.g)
         {

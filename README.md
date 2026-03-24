@@ -65,10 +65,15 @@
 
 请参见 [Git 版本号、自动写入与自动发布方案记录](./docs/git-versioning-and-release-notes.md) 中的 GPT 问答记录
 
-也可以通过 MSBuild 构建：
+也可以通过 MSBuild 构建（请确保 MSBuild.exe 所在目录在 PATH 中）：
 
 ```powershell
-& "C:\Program Files\Microsoft Visual Studio\18\Professional\MSBuild\Current\Bin\MSBuild.exe" ".\image_channel_viewer.sln" /restore /t:Build /p:Configuration=Release /p:Platform=x64
+&MSBuild.exe ".\image_channel_viewer.sln" /restore /t:Build /p:Configuration=Release /p:Platform=x64
+```
+
+如果要保存向量化报告等编译器输出信息，请追加
+```powershell
+| Select-String "向量化" | Out-File verctorize-log.txt
 ```
 
 ## 版本号与发布
