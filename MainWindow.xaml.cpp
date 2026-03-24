@@ -606,26 +606,34 @@ namespace winrt::image_channel_viewer::implementation
             co_await winrt::resume_background();
 
             ::image_channel_viewer::ContinuousPixelBuffer previewPixels(pixelWidth * 4, pixelWidth, pixelHeight);
-            auto const* sourcePixelData = sourcePixels.data();
-            auto* previewPixelData = previewPixels.data();
+            auto const* sourceRed = sourcePixels.red_data();
+            auto const* sourceGreen = sourcePixels.green_data();
+            auto const* sourceBlue = sourcePixels.blue_data();
+            auto const* sourceAlpha = sourcePixels.alpha_data();
+            auto* previewRed = previewPixels.red_data();
+            auto* previewGreen = previewPixels.green_data();
+            auto* previewBlue = previewPixels.blue_data();
+            auto* previewAlpha = previewPixels.alpha_data();
             const size_t pixelCount = sourcePixels.pixel_count();
             uint32_t lastReportedProgress = 0;
             for (size_t pixelIndex = 0; pixelIndex < pixelCount; ++pixelIndex)
             {
-                auto const& sourcePixel = sourcePixelData[pixelIndex];
-                const float alpha = sourcePixel[3];
+                const float red = sourceRed[pixelIndex];
+                const float green = sourceGreen[pixelIndex];
+                const float blue = sourceBlue[pixelIndex];
+                const float alpha = sourceAlpha[pixelIndex];
 
                 const PixelF pixel{
-                    sourcePixel[0],
-                    sourcePixel[1],
-                    sourcePixel[2],
+                    red,
+                    green,
+                    blue,
                 };
 
                 ContinuousPixel mappedPixel{};
                 switch (selectedMode)
                 {
                 case ColorMode::Original:
-                    mappedPixel = sourcePixel;
+                    mappedPixel = { red, green, blue, alpha };
                     break;
 
                 case ColorMode::RGB:
@@ -729,7 +737,10 @@ namespace winrt::image_channel_viewer::implementation
                 }
                 }
 
-                previewPixelData[pixelIndex] = mappedPixel;
+                previewRed[pixelIndex] = mappedPixel[0];
+                previewGreen[pixelIndex] = mappedPixel[1];
+                previewBlue[pixelIndex] = mappedPixel[2];
+                previewAlpha[pixelIndex] = mappedPixel[3];
 
                 const uint32_t progress = static_cast<uint32_t>(((pixelIndex + 1) * 100) / pixelCount);
                 if (progress != lastReportedProgress)

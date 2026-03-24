@@ -28,12 +28,18 @@ namespace image_channel_viewer
         {
         public:
             WinrtLayoutReference(
-                Pixel* pixels,
+                float* redChannel,
+                float* greenChannel,
+                float* blueChannel,
+                float* alphaChannel,
                 uint32_t stride,
                 uint32_t width,
                 uint32_t height,
                 size_t winrtIndex) noexcept :
-                m_pixels(pixels),
+                m_redChannel(redChannel),
+                m_greenChannel(greenChannel),
+                m_blueChannel(blueChannel),
+                m_alphaChannel(alphaChannel),
                 m_stride(stride),
                 m_width(width),
                 m_height(height),
@@ -67,14 +73,13 @@ namespace image_channel_viewer
             {
                 const auto mapping = TryResolveMapping();
 
-                if (!mapping.has_value() || m_pixels == nullptr)
+                if (!mapping.has_value())
                 {
                     // arbitrary out-of-range value to help identify bugs
                     return static_cast<uint8_t>(2964 % 256); // = 148
                 }
 
-                return ContinuousPixelBuffer::ToByte(
-                    m_pixels[mapping->pixelIndex][mapping->channelIndex]);
+                return ContinuousPixelBuffer::ToByte(ChannelData(mapping->channelIndex)[mapping->pixelIndex]);
             }
 
         private:
@@ -82,12 +87,29 @@ namespace image_channel_viewer
             {
                 const auto mapping = TryResolveMapping();
 
-                if (!mapping.has_value() || m_pixels == nullptr)
+                if (!mapping.has_value())
                 {
                     return;
                 }
 
-                m_pixels[mapping->pixelIndex][mapping->channelIndex] = ContinuousPixelBuffer::FromByte(value);
+                ChannelData(mapping->channelIndex)[mapping->pixelIndex] = ContinuousPixelBuffer::FromByte(value);
+            }
+
+            float* ChannelData(size_t channelIndex) const noexcept
+            {
+                switch (channelIndex)
+                {
+                case 0:
+                    return m_redChannel;
+                case 1:
+                    return m_greenChannel;
+                case 2:
+                    return m_blueChannel;
+                case 3:
+                    return m_alphaChannel;
+                default:
+                    return nullptr;
+                }
             }
 
             std::optional<Mapping> TryResolveMapping() const noexcept
@@ -125,7 +147,10 @@ namespace image_channel_viewer
                 };
             }
 
-            Pixel* m_pixels{ nullptr };
+            float* m_redChannel{ nullptr };
+            float* m_greenChannel{ nullptr };
+            float* m_blueChannel{ nullptr };
+            float* m_alphaChannel{ nullptr };
             uint32_t m_stride{ 0 };
             uint32_t m_width{ 0 };
             uint32_t m_height{ 0 };
@@ -144,12 +169,18 @@ namespace image_channel_viewer
             WinrtLayoutIterator() = default;
 
             WinrtLayoutIterator(
-                Pixel* pixels,
+                float* redChannel,
+                float* greenChannel,
+                float* blueChannel,
+                float* alphaChannel,
                 uint32_t stride,
                 uint32_t width,
                 uint32_t height,
                 size_t winrtIndex) noexcept :
-                m_pixels(pixels),
+                m_redChannel(redChannel),
+                m_greenChannel(greenChannel),
+                m_blueChannel(blueChannel),
+                m_alphaChannel(alphaChannel),
                 m_stride(stride),
                 m_width(width),
                 m_height(height),
@@ -159,7 +190,7 @@ namespace image_channel_viewer
 
             reference operator*() const noexcept
             {
-                return reference(m_pixels, m_stride, m_width, m_height, m_winrtIndex);
+                return reference(m_redChannel, m_greenChannel, m_blueChannel, m_alphaChannel, m_stride, m_width, m_height, m_winrtIndex);
             }
 
             WinrtLayoutIterator& operator++() noexcept
@@ -177,7 +208,10 @@ namespace image_channel_viewer
 
             bool operator==(WinrtLayoutIterator const& other) const noexcept
             {
-                return m_pixels == other.m_pixels
+                return m_redChannel == other.m_redChannel
+                    && m_greenChannel == other.m_greenChannel
+                    && m_blueChannel == other.m_blueChannel
+                    && m_alphaChannel == other.m_alphaChannel
                     && m_stride == other.m_stride
                     && m_width == other.m_width
                     && m_height == other.m_height
@@ -190,7 +224,10 @@ namespace image_channel_viewer
             }
 
         private:
-            Pixel* m_pixels{ nullptr };
+            float* m_redChannel{ nullptr };
+            float* m_greenChannel{ nullptr };
+            float* m_blueChannel{ nullptr };
+            float* m_alphaChannel{ nullptr };
             uint32_t m_stride{ 0 };
             uint32_t m_width{ 0 };
             uint32_t m_height{ 0 };
@@ -201,33 +238,84 @@ namespace image_channel_viewer
             m_stride(stride),
             m_width(width),
             m_height(height),
-            m_pixels(static_cast<size_t>(width) * height)
+            m_redChannel(static_cast<size_t>(width) * height),
+            m_greenChannel(static_cast<size_t>(width) * height),
+            m_blueChannel(static_cast<size_t>(width) * height),
+            m_alphaChannel(static_cast<size_t>(width) * height)
         {
         }
 
-        Pixel* data() noexcept
+        float* red_data() noexcept
         {
-            return m_pixels.data();
+            return m_redChannel.data();
         }
 
-        Pixel const* data() const noexcept
+        float const* red_data() const noexcept
         {
-            return m_pixels.data();
+            return m_redChannel.data();
+        }
+
+        float* green_data() noexcept
+        {
+            return m_greenChannel.data();
+        }
+
+        float const* green_data() const noexcept
+        {
+            return m_greenChannel.data();
+        }
+
+        float* blue_data() noexcept
+        {
+            return m_blueChannel.data();
+        }
+
+        float const* blue_data() const noexcept
+        {
+            return m_blueChannel.data();
+        }
+
+        float* alpha_data() noexcept
+        {
+            return m_alphaChannel.data();
+        }
+
+        float const* alpha_data() const noexcept
+        {
+            return m_alphaChannel.data();
+        }
+
+        Pixel pixel(size_t pixelIndex) const noexcept
+        {
+            return {
+                m_redChannel[pixelIndex],
+                m_greenChannel[pixelIndex],
+                m_blueChannel[pixelIndex],
+                m_alphaChannel[pixelIndex],
+            };
+        }
+
+        void set_pixel(size_t pixelIndex, Pixel const& pixel) noexcept
+        {
+            m_redChannel[pixelIndex] = pixel[0];
+            m_greenChannel[pixelIndex] = pixel[1];
+            m_blueChannel[pixelIndex] = pixel[2];
+            m_alphaChannel[pixelIndex] = pixel[3];
         }
 
         bool empty() const noexcept
         {
-            return m_pixels.empty();
+            return m_redChannel.empty();
         }
 
         size_t size() const noexcept
         {
-            return m_pixels.size();
+            return m_redChannel.size();
         }
 
         size_t pixel_count() const noexcept
         {
-            return m_pixels.size();
+            return m_redChannel.size();
         }
 
         uint32_t stride() const noexcept
@@ -252,12 +340,28 @@ namespace image_channel_viewer
 
         WinrtLayoutIterator winrt_begin() noexcept
         {
-            return WinrtLayoutIterator(m_pixels.data(), m_stride, m_width, m_height, 0);
+            return WinrtLayoutIterator(
+                m_redChannel.data(),
+                m_greenChannel.data(),
+                m_blueChannel.data(),
+                m_alphaChannel.data(),
+                m_stride,
+                m_width,
+                m_height,
+                0);
         }
 
         WinrtLayoutIterator winrt_end() noexcept
         {
-            return WinrtLayoutIterator(m_pixels.data(), m_stride, m_width, m_height, winrt_size());
+            return WinrtLayoutIterator(
+                m_redChannel.data(),
+                m_greenChannel.data(),
+                m_blueChannel.data(),
+                m_alphaChannel.data(),
+                m_stride,
+                m_width,
+                m_height,
+                winrt_size());
         }
 
         static float Clamp01(float value) noexcept
@@ -279,6 +383,9 @@ namespace image_channel_viewer
         const uint32_t m_stride;
         const uint32_t m_width;
         const uint32_t m_height;
-        std::vector<Pixel> m_pixels;
+        std::vector<float> m_redChannel;
+        std::vector<float> m_greenChannel;
+        std::vector<float> m_blueChannel;
+        std::vector<float> m_alphaChannel;
     };
 }
