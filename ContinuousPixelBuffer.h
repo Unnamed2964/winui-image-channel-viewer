@@ -11,6 +11,10 @@
 
 namespace image_channel_viewer
 {
+    // align vector::data() to 64 Byte for SIMD friendly
+    template<typename T>
+    using aligned_vector = std::vector<T, std::aligned_allocator<T, 64>>;
+
     class ContinuousPixelBuffer
     {
     public:
@@ -383,9 +387,9 @@ namespace image_channel_viewer
         const uint32_t m_stride;
         const uint32_t m_width;
         const uint32_t m_height;
-        std::vector<float> m_redChannel;
-        std::vector<float> m_greenChannel;
-        std::vector<float> m_blueChannel;
-        std::vector<float> m_alphaChannel;
+        aligned_vector<float> m_redChannel;
+        aligned_vector<float> m_greenChannel;
+        aligned_vector<float> m_blueChannel;
+        aligned_vector<float> m_alphaChannel;
     };
 }
