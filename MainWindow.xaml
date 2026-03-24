@@ -92,6 +92,15 @@
                     HorizontalAlignment="Right"
                     VerticalAlignment="Center">
                     <AppBarButton
+                        x:Name="SaveAsButton"
+                        Label="{x:Bind LocalizedString('SaveAsButton.Label'), Mode=OneWay}"
+                        Click="OnSaveAsClick">
+                        <AppBarButton.Icon>
+                            <FontIcon Glyph="&#xE792;" />
+                        </AppBarButton.Icon>
+                    </AppBarButton>
+
+                    <AppBarButton
                         x:Name="SettingsAppBarButton"
                         Label="{x:Bind LocalizedString('SettingsAppBarButton.Label'), Mode=OneWay}"
                         Click="OnSettingsClick">
@@ -150,6 +159,15 @@
                         HorizontalAlignment="Stretch"
                         VerticalAlignment="Center" />
                 </Border>
+
+                <InfoBar
+                    x:Name="SaveResultInfoBar"
+                    Width="360"
+                    Margin="16"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    IsClosable="True"
+                    IsOpen="False" />
 
                 <StackPanel
                     x:Name="EmptyStatePanel"
