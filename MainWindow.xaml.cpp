@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "ContinuousPixelBuffer.h"
 #include "MainWindow.xaml.h"
 #include "AppVersion.g.h"
 
@@ -11,6 +12,8 @@ using namespace Microsoft::UI::Xaml;
 
 namespace
 {
+    using ContinuousPixel = ::image_channel_viewer::ContinuousPixelBuffer::Pixel;
+
     struct __declspec(uuid("905a0fef-bc53-11df-8c49-001e4fc686da")) IBufferByteAccess : ::IUnknown
     {
         virtual HRESULT __stdcall Buffer(uint8_t** value) = 0;
@@ -23,144 +26,139 @@ namespace
 
     struct PixelF
     {
-        double r;
-        double g;
-        double b;
+        float r;
+        float g;
+        float b;
     };
 
     struct Hsl
     {
-        double h;
-        double s;
-        double l;
+        float h;
+        float s;
+        float l;
     };
 
     struct Hsv
     {
-        double h;
-        double s;
-        double v;
+        float h;
+        float s;
+        float v;
     };
 
     struct Cmyk
     {
-        double c;
-        double m;
-        double y;
-        double k;
+        float c;
+        float m;
+        float y;
+        float k;
     };
 
     struct Lab
     {
-        double l;
-        double a;
-        double b;
+        float l;
+        float a;
+        float b;
     };
 
-    double Clamp01(double value)
+    float Clamp01(float value)
     {
-        return std::clamp(value, 0.0, 1.0);
+        return ::image_channel_viewer::ContinuousPixelBuffer::Clamp01(value);
     }
 
-    uint8_t ToByte(double value)
+    float SrgbToLinear(float value)
     {
-        return static_cast<uint8_t>(std::lround(std::clamp(value, 0.0, 255.0)));
+        return value <= 0.04045f ? value / 12.92f : std::pow((value + 0.055f) / 1.055f, 2.4f);
     }
 
-    double SrgbToLinear(double value)
+    float HueToRgb(float p, float q, float t)
     {
-        return value <= 0.04045 ? value / 12.92 : std::pow((value + 0.055) / 1.055, 2.4);
-    }
-
-    double HueToRgb(double p, double q, double t)
-    {
-        if (t < 0.0)
+        if (t < 0.0f)
         {
-            t += 1.0;
+            t += 1.0f;
         }
-        if (t > 1.0)
+        if (t > 1.0f)
         {
-            t -= 1.0;
+            t -= 1.0f;
         }
-        if (t < 1.0 / 6.0)
+        if (t < 1.0f / 6.0f)
         {
-            return p + (q - p) * 6.0 * t;
+            return p + (q - p) * 6.0f * t;
         }
-        if (t < 1.0 / 2.0)
+        if (t < 1.0f / 2.0f)
         {
             return q;
         }
-        if (t < 2.0 / 3.0)
+        if (t < 2.0f / 3.0f)
         {
-            return p + (q - p) * (2.0 / 3.0 - t) * 6.0;
+            return p + (q - p) * (2.0f / 3.0f - t) * 6.0f;
         }
         return p;
     }
 
-    PixelF HslToRgb(double hue, double saturation, double lightness)
+    PixelF HslToRgb(float hue, float saturation, float lightness)
     {
-        hue = std::fmod(hue, 360.0);
-        if (hue < 0.0)
+        hue = std::fmod(hue, 360.0f);
+        if (hue < 0.0f)
         {
-            hue += 360.0;
+            hue += 360.0f;
         }
 
-        const double normalizedHue = hue / 360.0;
-        if (saturation <= 0.0)
+        const float normalizedHue = hue / 360.0f;
+        if (saturation <= 0.0f)
         {
             return { lightness, lightness, lightness };
         }
 
-        const double q = lightness < 0.5 ? lightness * (1.0 + saturation) : lightness + saturation - lightness * saturation;
-        const double p = 2.0 * lightness - q;
+        const float q = lightness < 0.5f ? lightness * (1.0f + saturation) : lightness + saturation - lightness * saturation;
+        const float p = 2.0f * lightness - q;
         return {
-            HueToRgb(p, q, normalizedHue + 1.0 / 3.0),
+            HueToRgb(p, q, normalizedHue + 1.0f / 3.0f),
             HueToRgb(p, q, normalizedHue),
-            HueToRgb(p, q, normalizedHue - 1.0 / 3.0),
+            HueToRgb(p, q, normalizedHue - 1.0f / 3.0f),
         };
     }
 
-    PixelF HsvToRgb(double hue, double saturation, double value)
+    PixelF HsvToRgb(float hue, float saturation, float value)
     {
-        hue = std::fmod(hue, 360.0);
-        if (hue < 0.0)
+        hue = std::fmod(hue, 360.0f);
+        if (hue < 0.0f)
         {
-            hue += 360.0;
+            hue += 360.0f;
         }
 
-        if (saturation <= 0.0)
+        if (saturation <= 0.0f)
         {
             return { value, value, value };
         }
 
-        const double chroma = value * saturation;
-        const double huePrime = hue / 60.0;
-        const double x = chroma * (1.0 - std::fabs(std::fmod(huePrime, 2.0) - 1.0));
-        double red = 0.0;
-        double green = 0.0;
-        double blue = 0.0;
+        const float chroma = value * saturation;
+        const float huePrime = hue / 60.0f;
+        const float x = chroma * (1.0f - std::fabs(std::fmod(huePrime, 2.0f) - 1.0f));
+        float red = 0.0f;
+        float green = 0.0f;
+        float blue = 0.0f;
 
-        if (huePrime < 1.0)
+        if (huePrime < 1.0f)
         {
             red = chroma;
             green = x;
         }
-        else if (huePrime < 2.0)
+        else if (huePrime < 2.0f)
         {
             red = x;
             green = chroma;
         }
-        else if (huePrime < 3.0)
+        else if (huePrime < 3.0f)
         {
             green = chroma;
             blue = x;
         }
-        else if (huePrime < 4.0)
+        else if (huePrime < 4.0f)
         {
             green = x;
             blue = chroma;
         }
-        else if (huePrime < 5.0)
+        else if (huePrime < 5.0f)
         {
             red = x;
             blue = chroma;
@@ -171,137 +169,137 @@ namespace
             blue = x;
         }
 
-        const double match = value - chroma;
+        const float match = value - chroma;
         return { red + match, green + match, blue + match };
     }
 
     Hsl RgbToHsl(PixelF pixel)
     {
-        const double maxValue = std::max({ pixel.r, pixel.g, pixel.b });
-        const double minValue = std::min({ pixel.r, pixel.g, pixel.b });
-        const double delta = maxValue - minValue;
-        const double lightness = (maxValue + minValue) * 0.5;
+        const float maxValue = std::max({ pixel.r, pixel.g, pixel.b });
+        const float minValue = std::min({ pixel.r, pixel.g, pixel.b });
+        const float delta = maxValue - minValue;
+        const float lightness = (maxValue + minValue) * 0.5f;
 
         Hsl result{};
         result.l = lightness;
 
-        if (delta <= std::numeric_limits<double>::epsilon())
+        if (delta <= std::numeric_limits<float>::epsilon())
         {
             return result;
         }
 
-        result.s = lightness > 0.5 ? delta / (2.0 - maxValue - minValue) : delta / (maxValue + minValue);
+        result.s = lightness > 0.5f ? delta / (2.0f - maxValue - minValue) : delta / (maxValue + minValue);
 
         if (maxValue == pixel.r)
         {
-            result.h = 60.0 * std::fmod(((pixel.g - pixel.b) / delta), 6.0);
+            result.h = 60.0f * std::fmod(((pixel.g - pixel.b) / delta), 6.0f);
         }
         else if (maxValue == pixel.g)
         {
-            result.h = 60.0 * (((pixel.b - pixel.r) / delta) + 2.0);
+            result.h = 60.0f * (((pixel.b - pixel.r) / delta) + 2.0f);
         }
         else
         {
-            result.h = 60.0 * (((pixel.r - pixel.g) / delta) + 4.0);
+            result.h = 60.0f * (((pixel.r - pixel.g) / delta) + 4.0f);
         }
 
-        if (result.h < 0.0)
+        if (result.h < 0.0f)
         {
-            result.h += 360.0;
+            result.h += 360.0f;
         }
         return result;
     }
 
     Hsv RgbToHsv(PixelF pixel)
     {
-        const double maxValue = std::max({ pixel.r, pixel.g, pixel.b });
-        const double minValue = std::min({ pixel.r, pixel.g, pixel.b });
-        const double delta = maxValue - minValue;
+        const float maxValue = std::max({ pixel.r, pixel.g, pixel.b });
+        const float minValue = std::min({ pixel.r, pixel.g, pixel.b });
+        const float delta = maxValue - minValue;
 
         Hsv result{};
         result.v = maxValue;
 
-        if (maxValue <= std::numeric_limits<double>::epsilon())
+        if (maxValue <= std::numeric_limits<float>::epsilon())
         {
             return result;
         }
 
         result.s = delta / maxValue;
-        if (delta <= std::numeric_limits<double>::epsilon())
+        if (delta <= std::numeric_limits<float>::epsilon())
         {
             return result;
         }
 
         if (maxValue == pixel.r)
         {
-            result.h = 60.0 * std::fmod(((pixel.g - pixel.b) / delta), 6.0);
+            result.h = 60.0f * std::fmod(((pixel.g - pixel.b) / delta), 6.0f);
         }
         else if (maxValue == pixel.g)
         {
-            result.h = 60.0 * (((pixel.b - pixel.r) / delta) + 2.0);
+            result.h = 60.0f * (((pixel.b - pixel.r) / delta) + 2.0f);
         }
         else
         {
-            result.h = 60.0 * (((pixel.r - pixel.g) / delta) + 4.0);
+            result.h = 60.0f * (((pixel.r - pixel.g) / delta) + 4.0f);
         }
 
-        if (result.h < 0.0)
+        if (result.h < 0.0f)
         {
-            result.h += 360.0;
+            result.h += 360.0f;
         }
         return result;
     }
 
     Cmyk RgbToCmyk(PixelF pixel)
     {
-        const double black = 1.0 - std::max({ pixel.r, pixel.g, pixel.b });
-        if (black >= 1.0 - std::numeric_limits<double>::epsilon())
+        const float black = 1.0f - std::max({ pixel.r, pixel.g, pixel.b });
+        if (black >= 1.0f - std::numeric_limits<float>::epsilon())
         {
-            return { 0.0, 0.0, 0.0, 1.0 };
+            return { 0.0f, 0.0f, 0.0f, 1.0f };
         }
 
-        const double denominator = 1.0 - black;
+        const float denominator = 1.0f - black;
         return {
-            (1.0 - pixel.r - black) / denominator,
-            (1.0 - pixel.g - black) / denominator,
-            (1.0 - pixel.b - black) / denominator,
+            (1.0f - pixel.r - black) / denominator,
+            (1.0f - pixel.g - black) / denominator,
+            (1.0f - pixel.b - black) / denominator,
             black,
         };
     }
 
-    double LabPivot(double value)
+    float LabPivot(float value)
     {
-        return value > 0.008856 ? std::cbrt(value) : (7.787 * value) + (16.0 / 116.0);
+        return value > 0.008856f ? std::cbrt(value) : (7.787f * value) + (16.0f / 116.0f);
     }
 
     Lab RgbToLab(PixelF pixel)
     {
-        const double linearRed = SrgbToLinear(pixel.r);
-        const double linearGreen = SrgbToLinear(pixel.g);
-        const double linearBlue = SrgbToLinear(pixel.b);
+        const float linearRed = SrgbToLinear(pixel.r);
+        const float linearGreen = SrgbToLinear(pixel.g);
+        const float linearBlue = SrgbToLinear(pixel.b);
 
-        const double x = linearRed * 0.4124564 + linearGreen * 0.3575761 + linearBlue * 0.1804375;
-        const double y = linearRed * 0.2126729 + linearGreen * 0.7151522 + linearBlue * 0.0721750;
-        const double z = linearRed * 0.0193339 + linearGreen * 0.1191920 + linearBlue * 0.9503041;
+        const float x = linearRed * 0.4124564f + linearGreen * 0.3575761f + linearBlue * 0.1804375f;
+        const float y = linearRed * 0.2126729f + linearGreen * 0.7151522f + linearBlue * 0.0721750f;
+        const float z = linearRed * 0.0193339f + linearGreen * 0.1191920f + linearBlue * 0.9503041f;
 
-        const double fx = LabPivot(x / 0.95047);
-        const double fy = LabPivot(y / 1.0);
-        const double fz = LabPivot(z / 1.08883);
+        const float fx = LabPivot(x / 0.95047f);
+        const float fy = LabPivot(y / 1.0f);
+        const float fz = LabPivot(z / 1.08883f);
 
         return {
-            (116.0 * fy) - 16.0,
-            500.0 * (fx - fy),
-            200.0 * (fy - fz),
+            (116.0f * fy) - 16.0f,
+            500.0f * (fx - fy),
+            200.0f * (fy - fz),
         };
     }
 
-    std::array<uint8_t, 4> ComposePixel(double red, double green, double blue, uint8_t alpha)
+    ContinuousPixel ComposePixel(float red, float green, float blue, float alpha)
     {
         return {
-            ToByte(Clamp01(blue) * 255.0),
-            ToByte(Clamp01(green) * 255.0),
-            ToByte(Clamp01(red) * 255.0),
-            alpha,
+            Clamp01(red),
+            Clamp01(green),
+            Clamp01(blue),
+            Clamp01(alpha),
         };
     }
 }
@@ -385,8 +383,8 @@ namespace winrt::image_channel_viewer::implementation
         [[maybe_unused]] IInspectable const& sender, 
         [[maybe_unused]] Controls::ScrollViewerViewChangedEventArgs const& args)
     {
-        m_savedHorizontalOffset = PreviewScrollViewer().HorizontalOffset();
-        m_savedVerticalOffset = PreviewScrollViewer().VerticalOffset();
+        m_savedHorizontalOffset = static_cast<float>(PreviewScrollViewer().HorizontalOffset());
+        m_savedVerticalOffset = static_cast<float>(PreviewScrollViewer().VerticalOffset());
         m_savedZoomFactor = PreviewScrollViewer().ZoomFactor();
     }
 
@@ -436,17 +434,12 @@ namespace winrt::image_channel_viewer::implementation
 
         const auto plane = buffer.GetPlaneDescription(0);
         m_stride = static_cast<uint32_t>(plane.Stride);
-        m_sourcePixels.resize(m_stride * m_pixelHeight);
-
-        for (uint32_t row = 0; row < m_pixelHeight; ++row)
-        {
-            const auto* rowStart = sourceData + plane.StartIndex + (row * m_stride);
-            std::copy_n(rowStart, m_stride, m_sourcePixels.data() + (row * m_stride));
-        }
+        m_sourcePixels.emplace(m_stride, m_pixelWidth, m_pixelHeight);
+        std::copy_n(sourceData + plane.StartIndex, m_sourcePixels->winrt_size(), m_sourcePixels->winrt_begin());
 
         m_fitPreviewOnNextRefresh = true;
-        m_savedHorizontalOffset = 0.0;
-        m_savedVerticalOffset = 0.0;
+        m_savedHorizontalOffset = 0.0f;
+        m_savedVerticalOffset = 0.0f;
         EmptyStatePanel().Visibility(Visibility::Collapsed);
         RefreshPreview();
     }
@@ -587,7 +580,7 @@ namespace winrt::image_channel_viewer::implementation
             PreviewProgressBar().Value(0.0);
             PreviewProgressHost().Visibility(Visibility::Visible);
 
-            if (m_sourcePixels.empty() || m_pixelWidth == 0 || m_pixelHeight == 0)
+            if (!m_sourcePixels.has_value() || m_sourcePixels->empty() || m_pixelWidth == 0 || m_pixelHeight == 0)
             {
                 PreviewProgressHost().Visibility(Visibility::Collapsed);
                 PreviewImage().Source(nullptr);
@@ -600,13 +593,12 @@ namespace winrt::image_channel_viewer::implementation
             const bool showGrayscale = GrayscaleToggle().IsOn();
             const uint32_t pixelWidth = m_pixelWidth;
             const uint32_t pixelHeight = m_pixelHeight;
-            const uint32_t stride = m_stride;
             const auto selectedModeIndex = m_selectedModeIndex;
             const auto selectedChannelIndex = m_selectedChannelIndex;
             const auto definition = m_modes.at(selectedModeIndex);
             const auto channelLabel = definition.channels.at(std::min<uint32_t>(selectedChannelIndex, static_cast<uint32_t>(definition.channels.size() - 1)));
             const auto loadedFileName = m_loadedFileName;
-            auto sourcePixels = m_sourcePixels;
+            auto sourcePixels = *m_sourcePixels;
 
             // resume_background schedules the coroutine continuation 
             // on a thread-pool thread. Unlike JavaScript await, this 
@@ -614,139 +606,133 @@ namespace winrt::image_channel_viewer::implementation
             // below no longer runs on the UI thread.
             co_await winrt::resume_background();
 
-            std::vector<uint8_t> previewPixels(stride * pixelHeight);
+            ::image_channel_viewer::ContinuousPixelBuffer previewPixels(pixelWidth * 4, pixelWidth, pixelHeight);
+            auto const* sourcePixelData = sourcePixels.data();
+            auto* previewPixelData = previewPixels.data();
+            const size_t pixelCount = sourcePixels.pixel_count();
             uint32_t lastReportedProgress = 0;
-            for (uint32_t row = 0; row < pixelHeight; ++row)
+            for (size_t pixelIndex = 0; pixelIndex < pixelCount; ++pixelIndex)
             {
-                for (uint32_t column = 0; column < pixelWidth; ++column)
+                auto const& sourcePixel = sourcePixelData[pixelIndex];
+                const float alpha = sourcePixel[3];
+
+                const PixelF pixel{
+                    sourcePixel[0],
+                    sourcePixel[1],
+                    sourcePixel[2],
+                };
+
+                ContinuousPixel mappedPixel{};
+                switch (selectedMode)
                 {
-                    const uint32_t offset = row * stride + column * 4;
-                    const uint8_t blue = sourcePixels[offset + 0];
-                    const uint8_t green = sourcePixels[offset + 1];
-                    const uint8_t red = sourcePixels[offset + 2];
-                    const uint8_t alpha = sourcePixels[offset + 3];
+                case ColorMode::Original:
+                    mappedPixel = sourcePixel;
+                    break;
 
-                    const PixelF pixel{
-                        red / 255.0,
-                        green / 255.0,
-                        blue / 255.0,
-                    };
-
-                    std::array<uint8_t, 4> mappedPixel{};
-                    switch (selectedMode)
+                case ColorMode::RGB:
+                {
+                    const float channelValue = channelIndex == 0 ? pixel.r : (channelIndex == 1 ? pixel.g : pixel.b);
+                    if (showGrayscale)
                     {
-                    case ColorMode::Original:
-                        mappedPixel = { blue, green, red, alpha };
-                        break;
-
-                    case ColorMode::RGB:
+                        mappedPixel = ComposePixel(channelValue, channelValue, channelValue, alpha);
+                    }
+                    else
                     {
-                        const double channelValue = channelIndex == 0 ? pixel.r : (channelIndex == 1 ? pixel.g : pixel.b);
-                        if (showGrayscale)
-                        {
-                            mappedPixel = ComposePixel(channelValue, channelValue, channelValue, alpha);
-                        }
-                        else
-                        {
-                            mappedPixel = ComposePixel(
-                                channelIndex == 0 ? channelValue : 0.0,
-                                channelIndex == 1 ? channelValue : 0.0,
-                                channelIndex == 2 ? channelValue : 0.0,
-                                alpha);
-                        }
-                        break;
+                        mappedPixel = ComposePixel(
+                            channelIndex == 0 ? channelValue : 0.0f,
+                            channelIndex == 1 ? channelValue : 0.0f,
+                            channelIndex == 2 ? channelValue : 0.0f,
+                            alpha);
                     }
-
-                    case ColorMode::HSL:
-                    {
-                        const auto hsl = RgbToHsl(pixel);
-                        if (channelIndex == 0)
-                        {
-                            const auto huePixel = HslToRgb(hsl.h, 1.0, 0.5);
-                            mappedPixel = ComposePixel(huePixel.r, huePixel.g, huePixel.b, alpha);
-                        }
-                        else if (channelIndex == 1)
-                        {
-                            mappedPixel = ComposePixel(hsl.s, hsl.s, hsl.s, alpha);
-                        }
-                        else
-                        {
-                            mappedPixel = ComposePixel(hsl.l, hsl.l, hsl.l, alpha);
-                        }
-                        break;
-                    }
-
-                    case ColorMode::HSV:
-                    {
-                        const auto hsv = RgbToHsv(pixel);
-                        if (channelIndex == 0)
-                        {
-                            const auto huePixel = HsvToRgb(hsv.h, 1.0, 1.0);
-                            mappedPixel = ComposePixel(huePixel.r, huePixel.g, huePixel.b, alpha);
-                        }
-                        else if (channelIndex == 1)
-                        {
-                            mappedPixel = ComposePixel(hsv.s, hsv.s, hsv.s, alpha);
-                        }
-                        else
-                        {
-                            mappedPixel = ComposePixel(hsv.v, hsv.v, hsv.v, alpha);
-                        }
-                        break;
-                    }
-
-                    case ColorMode::CMYK:
-                    {
-                        const auto cmyk = RgbToCmyk(pixel);
-                        const double channelValue = channelIndex == 0 ? cmyk.c : (channelIndex == 1 ? cmyk.m : (channelIndex == 2 ? cmyk.y : cmyk.k));
-                        if (showGrayscale || channelIndex == 3)
-                        {
-                            mappedPixel = ComposePixel(channelValue, channelValue, channelValue, alpha);
-                        }
-                        else if (channelIndex == 0)
-                        {
-                            mappedPixel = ComposePixel(0.0, channelValue, channelValue, alpha);
-                        }
-                        else if (channelIndex == 1)
-                        {
-                            mappedPixel = ComposePixel(channelValue, 0.0, channelValue, alpha);
-                        }
-                        else
-                        {
-                            mappedPixel = ComposePixel(channelValue, channelValue, 0.0, alpha);
-                        }
-                        break;
-                    }
-
-                    case ColorMode::LAB:
-                    {
-                        const auto lab = RgbToLab(pixel);
-                        if (channelIndex == 0)
-                        {
-                            const double lightness = Clamp01(lab.l / 100.0);
-                            mappedPixel = ComposePixel(lightness, lightness, lightness, alpha);
-                        }
-                        else if (channelIndex == 1)
-                        {
-                            const double value = Clamp01((lab.a + 128.0) / 255.0);
-                            mappedPixel = ComposePixel(value, value, value, alpha);
-                        }
-                        else
-                        {
-                            const double value = Clamp01((lab.b + 128.0) / 255.0);
-                            mappedPixel = ComposePixel(value, value, value, alpha);
-                        }
-                        break;
-                    }
-                    }
-
-                    previewPixels[offset + 0] = mappedPixel[0];
-                    previewPixels[offset + 1] = mappedPixel[1];
-                    previewPixels[offset + 2] = mappedPixel[2];
-                    previewPixels[offset + 3] = mappedPixel[3];
+                    break;
                 }
 
-                const uint32_t progress = ((row + 1) * 100) / pixelHeight;
+                case ColorMode::HSL:
+                {
+                    const auto hsl = RgbToHsl(pixel);
+                    if (channelIndex == 0)
+                    {
+                        const auto huePixel = HslToRgb(hsl.h, 1.0f, 0.5f);
+                        mappedPixel = ComposePixel(huePixel.r, huePixel.g, huePixel.b, alpha);
+                    }
+                    else if (channelIndex == 1)
+                    {
+                        mappedPixel = ComposePixel(hsl.s, hsl.s, hsl.s, alpha);
+                    }
+                    else
+                    {
+                        mappedPixel = ComposePixel(hsl.l, hsl.l, hsl.l, alpha);
+                    }
+                    break;
+                }
+
+                case ColorMode::HSV:
+                {
+                    const auto hsv = RgbToHsv(pixel);
+                    if (channelIndex == 0)
+                    {
+                        const auto huePixel = HsvToRgb(hsv.h, 1.0f, 1.0f);
+                        mappedPixel = ComposePixel(huePixel.r, huePixel.g, huePixel.b, alpha);
+                    }
+                    else if (channelIndex == 1)
+                    {
+                        mappedPixel = ComposePixel(hsv.s, hsv.s, hsv.s, alpha);
+                    }
+                    else
+                    {
+                        mappedPixel = ComposePixel(hsv.v, hsv.v, hsv.v, alpha);
+                    }
+                    break;
+                }
+
+                case ColorMode::CMYK:
+                {
+                    const auto cmyk = RgbToCmyk(pixel);
+                    const float channelValue = channelIndex == 0 ? cmyk.c : (channelIndex == 1 ? cmyk.m : (channelIndex == 2 ? cmyk.y : cmyk.k));
+                    if (showGrayscale || channelIndex == 3)
+                    {
+                        mappedPixel = ComposePixel(channelValue, channelValue, channelValue, alpha);
+                    }
+                    else if (channelIndex == 0)
+                    {
+                        mappedPixel = ComposePixel(0.0f, channelValue, channelValue, alpha);
+                    }
+                    else if (channelIndex == 1)
+                    {
+                        mappedPixel = ComposePixel(channelValue, 0.0f, channelValue, alpha);
+                    }
+                    else
+                    {
+                        mappedPixel = ComposePixel(channelValue, channelValue, 0.0f, alpha);
+                    }
+                    break;
+                }
+
+                case ColorMode::LAB:
+                {
+                    const auto lab = RgbToLab(pixel);
+                    if (channelIndex == 0)
+                    {
+                        const float lightness = Clamp01(lab.l / 100.0f);
+                        mappedPixel = ComposePixel(lightness, lightness, lightness, alpha);
+                    }
+                    else if (channelIndex == 1)
+                    {
+                        const float value = Clamp01((lab.a + 128.0f) / 255.0f);
+                        mappedPixel = ComposePixel(value, value, value, alpha);
+                    }
+                    else
+                    {
+                        const float value = Clamp01((lab.b + 128.0f) / 255.0f);
+                        mappedPixel = ComposePixel(value, value, value, alpha);
+                    }
+                    break;
+                }
+                }
+
+                previewPixelData[pixelIndex] = mappedPixel;
+
+                const uint32_t progress = static_cast<uint32_t>(((pixelIndex + 1) * 100) / pixelCount);
                 if (progress != lastReportedProgress)
                 {
                     lastReportedProgress = progress;
@@ -757,7 +743,7 @@ namespace winrt::image_channel_viewer::implementation
                             {
                                 if (requestId == self->m_previewRequestId)
                                 {
-                                    self->PreviewProgressBar().Value(static_cast<double>(progress));
+                                    self->PreviewProgressBar().Value(progress);
                                 }
                             }
                         });
@@ -782,7 +768,7 @@ namespace winrt::image_channel_viewer::implementation
 
             uint8_t* destination = nullptr;
             check_hresult(bufferByteAccess->Buffer(&destination));
-            std::copy(previewPixels.begin(), previewPixels.end(), destination);
+            std::copy(previewPixels.winrt_begin(), previewPixels.winrt_end(), destination);
             writeableBitmap.Invalidate();
 
             PreviewProgressBar().Value(100.0);
@@ -849,16 +835,16 @@ namespace winrt::image_channel_viewer::implementation
 
     float MainWindow::ComputeFitZoomFactor()
     {
-        const double viewportWidth = PreviewScrollViewer().ActualWidth();
-        const double viewportHeight = PreviewScrollViewer().ActualHeight();
-        if (viewportWidth <= 0.0 || viewportHeight <= 0.0 || m_pixelWidth == 0 || m_pixelHeight == 0)
+        const float viewportWidth = static_cast<float>(PreviewScrollViewer().ActualWidth());
+        const float viewportHeight = static_cast<float>(PreviewScrollViewer().ActualHeight());
+        if (viewportWidth <= 0.0f || viewportHeight <= 0.0f || m_pixelWidth == 0 || m_pixelHeight == 0)
         {
             return 1.0f;
         }
 
-        const double widthRatio = viewportWidth / static_cast<double>(m_pixelWidth);
-        const double heightRatio = viewportHeight / static_cast<double>(m_pixelHeight);
-        return static_cast<float>(std::min(widthRatio, heightRatio));
+        const float widthRatio = viewportWidth / static_cast<float>(m_pixelWidth);
+        const float heightRatio = viewportHeight / static_cast<float>(m_pixelHeight);
+        return std::min(widthRatio, heightRatio);
     }
 
     void MainWindow::RestorePreviewView()
@@ -867,8 +853,8 @@ namespace winrt::image_channel_viewer::implementation
         if (m_fitPreviewOnNextRefresh)
         {
             m_savedZoomFactor = ComputeFitZoomFactor();
-            m_savedHorizontalOffset = 0.0;
-            m_savedVerticalOffset = 0.0;
+            m_savedHorizontalOffset = 0.0f;
+            m_savedVerticalOffset = 0.0f;
             m_fitPreviewOnNextRefresh = false;
         }
 

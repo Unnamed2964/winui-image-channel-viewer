@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ContinuousPixelBuffer.h"
 #include "MainWindow.g.h"
 
 namespace winrt::image_channel_viewer::implementation
@@ -47,15 +48,15 @@ namespace winrt::image_channel_viewer::implementation
 
         std::vector<ModeDefinition> m_modes;
         winrt::Windows::Graphics::Imaging::SoftwareBitmap m_sourceBitmap{ nullptr };
-        std::vector<std::uint8_t> m_sourcePixels;
+        std::optional<::image_channel_viewer::ContinuousPixelBuffer> m_sourcePixels;
         winrt::hstring m_loadedFileName;
         uint32_t m_pixelWidth{ 0 };
         uint32_t m_pixelHeight{ 0 };
         uint32_t m_stride{ 0 };
         uint32_t m_selectedModeIndex{ 0 };
         uint32_t m_selectedChannelIndex{ 0 };
-        double m_savedHorizontalOffset{ 0.0 };
-        double m_savedVerticalOffset{ 0.0 };
+        float m_savedHorizontalOffset{ 0.0f };
+        float m_savedVerticalOffset{ 0.0f };
         float m_savedZoomFactor{ 1.0f };
         uint64_t m_previewRequestId{ 0 };
         bool m_fitPreviewOnNextRefresh{ false };
