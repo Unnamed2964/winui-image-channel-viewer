@@ -5,6 +5,16 @@
 
 namespace winrt::image_channel_viewer::implementation
 {
+    enum class ColorMode
+    {
+        Original,
+        RGB,
+        HSL,
+        HSV,
+        CMYK,
+        LAB,
+    };
+
     struct MainWindow : MainWindowT<MainWindow>
     {
         MainWindow();
@@ -17,16 +27,6 @@ namespace winrt::image_channel_viewer::implementation
         void OnPreviewViewChanged(IInspectable const& sender, Microsoft::UI::Xaml::Controls::ScrollViewerViewChangedEventArgs const& args);
 
     private:
-        enum class ColorMode
-        {
-            Original,
-            RGB,
-            HSL,
-            HSV,
-            CMYK,
-            LAB,
-        };
-
         struct ModeDefinition
         {
             ColorMode mode;
