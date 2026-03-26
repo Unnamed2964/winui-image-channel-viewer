@@ -1,0 +1,24 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build image_channel_viewer (Debug x64)",
+      "type": "shell",
+      "command": "msbuild",
+      "args": [
+        ".\\image_channel_viewer.sln",
+        "/t:Build",
+        "/p:Configuration=Debug",
+        "/p:Platform=x64"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": "$msCompile"
+    }
+  ]
+}

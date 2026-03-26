@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug image_channel_viewer (x64)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/x64/Debug/image_channel_viewer/image_channel_viewer.exe",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Build image_channel_viewer (Debug x64)",
+      "stopAtEntry": false
+    }
+  ]
+}
