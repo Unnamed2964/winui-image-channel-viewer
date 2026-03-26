@@ -23,7 +23,7 @@ namespace winrt::image_channel_viewer::implementation
         void OnAboutClick(IInspectable const& sender, Microsoft::UI::Xaml::RoutedEventArgs const& args);
         void OnColorModeItemClick(IInspectable const& sender, Microsoft::UI::Xaml::RoutedEventArgs const& args);
         void OnchannelItemClick(IInspectable const& sender, Microsoft::UI::Xaml::RoutedEventArgs const& args);
-        void OnGrayscaleToggled(IInspectable const& sender, Microsoft::UI::Xaml::RoutedEventArgs const& args);
+        void OnGrayscaleItemClick(IInspectable const& sender, Microsoft::UI::Xaml::RoutedEventArgs const& args);
         void OnPreviewViewChanged(IInspectable const& sender, Microsoft::UI::Xaml::Controls::ScrollViewerViewChangedEventArgs const& args);
 
     private:
@@ -39,6 +39,7 @@ namespace winrt::image_channel_viewer::implementation
         winrt::Windows::Foundation::IAsyncAction ShowAboutDialogAsync();
         void InitializeModes();
         void Populatechannels();
+        void UpdateGrayscaleControls(bool supportsGrayscaleToggle);
         winrt::fire_and_forget RefreshPreview();
         std::optional<ColorMode> SelectedMode();
         std::optional<uint32_t> SelectedchannelIndex();
@@ -61,6 +62,7 @@ namespace winrt::image_channel_viewer::implementation
         uint64_t m_previewRequestId{ 0 };
         bool m_fitPreviewOnNextRefresh{ false };
         bool m_isUpdatingUi{ false };
+        bool m_showGrayscale{ false };
     };
 }
 

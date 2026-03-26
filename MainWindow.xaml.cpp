@@ -573,7 +573,7 @@ namespace winrt::image_channel_viewer::implementation
         }
 
         m_selectedModeIndex = unbox_value<uint32_t>(menuItem.Tag());
-        ColorModeSelectionText().Text(m_modes.at(m_selectedModeIndex).label);
+        ColorModeAppBarButton().Label(m_modes.at(m_selectedModeIndex).label);
         Populatechannels();
         RefreshPreview();
     }
@@ -594,18 +594,28 @@ namespace winrt::image_channel_viewer::implementation
         }
 
         m_selectedChannelIndex = unbox_value<uint32_t>(menuItem.Tag());
-        ChannelSelectionText().Text(menuItem.Text());
+        ChannelAppBarButton().Label(menuItem.Text());
         RefreshPreview();
     }
 
-    void MainWindow::OnGrayscaleToggled(
+    void MainWindow::OnGrayscaleItemClick(
         [[maybe_unused]] IInspectable const& sender, 
         [[maybe_unused]] RoutedEventArgs const& args)
     {
-        if (!m_isUpdatingUi)
+        if (m_isUpdatingUi)
         {
-            RefreshPreview();
+            return;
         }
+
+        auto menuItem = sender.try_as<Controls::RadioMenuFlyoutItem>();
+        if (!menuItem)
+        {
+            return;
+        }
+
+        m_showGrayscale = menuItem == GrayscaleDisplayMenuItem();
+        UpdateGrayscaleControls(GrayscaleAppBarButton().IsEnabled());
+        RefreshPreview();
     }
 
     void MainWindow::OnPreviewViewChanged(
@@ -757,7 +767,7 @@ namespace winrt::image_channel_viewer::implementation
         }
 
         m_selectedModeIndex = 0;
-        ColorModeSelectionText().Text(m_modes.front().label);
+        ColorModeAppBarButton().Label(m_modes.front().label);
     }
 
     void MainWindow::Populatechannels()
@@ -784,15 +794,24 @@ namespace winrt::image_channel_viewer::implementation
         }
 
         m_selectedChannelIndex = 0;
-        ChannelSelectionText().Text(definition.channels.front());
-        ChannelDropDownButton().IsEnabled(definition.mode != ColorMode::Original);
-        GrayscaleToggle().IsEnabled(definition.supportsGrayscaleToggle);
-        if (!definition.supportsGrayscaleToggle)
-        {
-            GrayscaleToggle().IsOn(false);
-        }
+        ChannelAppBarButton().Label(definition.channels.front());
+        ChannelAppBarButton().IsEnabled(definition.mode != ColorMode::Original);
+        UpdateGrayscaleControls(definition.supportsGrayscaleToggle);
 
         m_isUpdatingUi = false;
+    }
+
+    void MainWindow::UpdateGrayscaleControls(bool supportsGrayscaleToggle)
+    {
+        if (!supportsGrayscaleToggle)
+        {
+            m_showGrayscale = false;
+        }
+
+        GrayscaleAppBarButton().IsEnabled(supportsGrayscaleToggle);
+        GrayscaleAppBarButton().Label(m_showGrayscale ? L"黑白显示" : L"彩色显示");
+        ColorDisplayMenuItem().IsChecked(!m_showGrayscale);
+        GrayscaleDisplayMenuItem().IsChecked(m_showGrayscale);
     }
 
     winrt::fire_and_forget MainWindow::RefreshPreview()
@@ -819,7 +838,7 @@ namespace winrt::image_channel_viewer::implementation
 
             const auto selectedMode = SelectedMode().value_or(ColorMode::Original);
             const auto channelIndex = SelectedchannelIndex().value_or(0);
-            const bool showGrayscale = GrayscaleToggle().IsOn();
+            const bool showGrayscale = m_showGrayscale;
             const uint32_t pixelWidth = m_pixelWidth;
             const uint32_t pixelHeight = m_pixelHeight;
             const auto selectedModeIndex = m_selectedModeIndex;
