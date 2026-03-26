@@ -690,6 +690,8 @@ namespace winrt::image_channel_viewer::implementation
         dialog.PrimaryButtonText(L"关闭");
         dialog.DefaultButton(Controls::ContentDialogButton::Primary);
         dialog.XamlRoot(Content().XamlRoot());
+        dialog.Background(Microsoft::UI::Xaml::Media::SolidColorBrush(
+            Microsoft::UI::ColorHelper::FromArgb(0xFF, 0x91, 0xD4, 0xE4)));
 
         Microsoft::UI::Xaml::Controls::StackPanel contentPanel;
         contentPanel.Spacing(12);
