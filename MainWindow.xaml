@@ -16,8 +16,7 @@
     <Grid>
         <Grid>
             <Grid.RowDefinitions>
-                <!-- 8epx between control and header, 32 + 8 + 8 = 48 -->
-                <RowDefinition Height="48"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
@@ -28,70 +27,87 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <!-- "24epx: Spacing between content sections." specify in the "WinUI 3 Gallery" App -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="12,0" Spacing="24">
-                    <Button
+                <CommandBar
+                    Grid.Column="0"
+                    IsOpen="False"
+                    DefaultLabelPosition="Right"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Center">
+                    <AppBarButton
                         x:Name="OpenImageButton"
-                        Height="32"
-                        Padding="16,0"
-                        MinWidth="136"
-                        Click="OnOpenImageClick"
-                        HorizontalAlignment="Left"
-                        VerticalAlignment="Center">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
+                        Label="选择图片"
+                        Click="OnOpenImageClick">
+                        <AppBarButton.Icon>
                             <FontIcon Glyph="&#xE8B7;" />
-                            <TextBlock Text="选择图片" />
-                        </StackPanel>
-                    </Button>
+                        </AppBarButton.Icon>
+                    </AppBarButton>
 
-                    <!-- 12epx between control and label, etc. -->
-                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                        <TextBlock Text="颜色模式" VerticalAlignment="Center" />
-                        <DropDownButton x:Name="ColorModeDropDownButton" MinWidth="140" Height="32">
-                            <DropDownButton.Content>
-                                <TextBlock x:Name="ColorModeSelectionText" Text="原图" />
-                            </DropDownButton.Content>
-                            <DropDownButton.Flyout>
-                                <MenuFlyout x:Name="ColorModeFlyout" Placement="Bottom" />
-                            </DropDownButton.Flyout>
-                        </DropDownButton>
-                    </StackPanel>
+                    <AppBarButton
+                        x:Name="ColorModeAppBarButton"
+                        Label="原图"
+                        ToolTipService.ToolTip="颜色模式"
+                        AutomationProperties.Name="颜色模式">
+                        <AppBarButton.Icon>
+                            <FontIcon Glyph="&#xE790;" />
+                        </AppBarButton.Icon>
+                        <AppBarButton.Flyout>
+                            <MenuFlyout x:Name="ColorModeFlyout" Placement="Bottom" />
+                        </AppBarButton.Flyout>
+                    </AppBarButton>
 
-                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                        <TextBlock Text="分量" VerticalAlignment="Center" />
-                        <DropDownButton x:Name="ChannelDropDownButton" MinWidth="120" Height="32">
-                            <DropDownButton.Content>
-                                <TextBlock x:Name="ChannelSelectionText" Text="原图" />
-                            </DropDownButton.Content>
-                            <DropDownButton.Flyout>
-                                <MenuFlyout x:Name="ChannelFlyout" Placement="Bottom" />
-                            </DropDownButton.Flyout>
-                        </DropDownButton>
-                    </StackPanel>
+                    <AppBarButton
+                        x:Name="ChannelAppBarButton"
+                        Label="原图"
+                        ToolTipService.ToolTip="分量"
+                        AutomationProperties.Name="分量">
+                        <AppBarButton.Icon>
+                            <FontIcon Glyph="&#xE8EC;" />
+                        </AppBarButton.Icon>
+                        <AppBarButton.Flyout>
+                            <MenuFlyout x:Name="ChannelFlyout" Placement="Bottom" />
+                        </AppBarButton.Flyout>
+                    </AppBarButton>
 
-                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                        <TextBlock Text="黑白显示" VerticalAlignment="Center" />
-                        <ToggleSwitch
-                            x:Name="GrayscaleToggle"
-                            Toggled="OnGrayscaleToggled"
-                            VerticalAlignment="Center" />
-                    </StackPanel>
-                </StackPanel>
+                    <AppBarButton
+                        x:Name="GrayscaleAppBarButton"
+                        Label="彩色显示"
+                        ToolTipService.ToolTip="显示模式"
+                        AutomationProperties.Name="显示模式">
+                        <AppBarButton.Icon>
+                            <FontIcon Glyph="&#xE746;" />
+                        </AppBarButton.Icon>
+                        <AppBarButton.Flyout>
+                            <MenuFlyout Placement="Bottom">
+                                <RadioMenuFlyoutItem
+                                    x:Name="ColorDisplayMenuItem"
+                                    GroupName="PreviewDisplayMode"
+                                    Text="彩色显示"
+                                    IsChecked="True"
+                                    Click="OnGrayscaleItemClick" />
+                                <RadioMenuFlyoutItem
+                                    x:Name="GrayscaleDisplayMenuItem"
+                                    GroupName="PreviewDisplayMode"
+                                    Text="黑白显示"
+                                    Click="OnGrayscaleItemClick" />
+                            </MenuFlyout>
+                        </AppBarButton.Flyout>
+                    </AppBarButton>
+                </CommandBar>
 
-                <Button
+                <CommandBar
                     Grid.Column="1"
-                    Margin="0,0,12,0"
-                    MinWidth="108"
-                    Height="32"
-                    Padding="12,0"
-                    Click="OnAboutClick"
+                    IsOpen="False"
+                    DefaultLabelPosition="Right"
                     HorizontalAlignment="Right"
                     VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <FontIcon Glyph="&#xE946;" />
-                        <TextBlock Text="关于" />
-                    </StackPanel>
-                </Button>
+                    <AppBarButton
+                        Label="关于"
+                        Click="OnAboutClick">
+                        <AppBarButton.Icon>
+                            <FontIcon Glyph="&#xE946;" />
+                        </AppBarButton.Icon>
+                    </AppBarButton>
+                </CommandBar>
             </Grid>
 
             <Border Grid.Row="1" Height="1" Background="{ThemeResource CardStrokeColorDefaultBrush}" />
