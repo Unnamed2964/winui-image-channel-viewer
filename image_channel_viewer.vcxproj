@@ -27,7 +27,7 @@
     <WinUISDKReferences>false</WinUISDKReferences>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.250228001" GeneratePathProperty="true" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.7.260224002" GeneratePathProperty="true" />
     <PackageReference Include="Microsoft.Windows.CppWinRT" Version="2.0.250303.1" GeneratePathProperty="true" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.4188" GeneratePathProperty="true" />
     <PackageReference Include="Microsoft.Windows.ImplementationLibrary" Version="1.0.250325.1" GeneratePathProperty="true" />
