@@ -538,6 +538,7 @@ namespace winrt::image_channel_viewer::implementation
     MainWindow::MainWindow()
     {
         InitializeComponent();
+        AppWindow().TitleBar().PreferredTheme(Microsoft::UI::Windowing::TitleBarTheme::UseDefaultAppMode);
         Title(L"Image Channel Viewer");
         InitializeModes();
         Populatechannels();
