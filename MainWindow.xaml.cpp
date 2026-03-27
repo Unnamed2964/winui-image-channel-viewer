@@ -2,6 +2,7 @@
 #include "ContinuousPixelBuffer.h"
 #include "MainWindow.xaml.h"
 #include "AppVersion.g.h"
+#include <winrt/Microsoft.Windows.ApplicationModel.Resources.h>
 
 #if __has_include("MainWindow.g.cpp")
 #include "MainWindow.g.cpp"
@@ -12,6 +13,8 @@ using namespace Microsoft::UI::Xaml;
 
 namespace
 {
+    using ResourceLoader = winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceLoader;
+
     struct __declspec(uuid("905a0fef-bc53-11df-8c49-001e4fc686da")) IBufferByteAccess : ::IUnknown
     {
         virtual HRESULT __stdcall Buffer(uint8_t** value) = 0;
@@ -23,6 +26,56 @@ namespace
     };
 
     using ColorMode = winrt::image_channel_viewer::implementation::ColorMode;
+
+    ResourceLoader& LocalizedResources()
+    {
+        static ResourceLoader loader{
+            ResourceLoader::GetDefaultResourceFilePath(),
+            L"Resources"
+        };
+        return loader;
+    }
+
+    hstring LocalizedString(std::wstring_view resourceId)
+    {
+        try
+        {
+            std::wstring normalizedResourceId{ resourceId };
+            std::replace(normalizedResourceId.begin(), normalizedResourceId.end(), L'.', L'/');
+
+            hstring const value = LocalizedResources().GetString(hstring{ normalizedResourceId });
+            return value.empty() ? hstring{ resourceId } : value;
+        }
+        catch (...)
+        {
+            return hstring{ resourceId };
+        }
+    }
+
+    hstring FormatLocalizedString(std::wstring_view resourceId, std::initializer_list<hstring> arguments)
+    {
+        // std::v_format is intentionally not used because it may introduce unexpected
+        // behaviors and potential attack surfaces with an externally constructed format 
+        // strings and an ill-written custom global std::formatter.
+        std::wstring formatted = LocalizedString(resourceId).c_str();
+        size_t argumentIndex = 0;
+
+        for (auto const& argument : arguments)
+        {
+            std::wstring const token = L"{" + std::to_wstring(argumentIndex) + L"}";
+            size_t searchIndex = 0;
+
+            while ((searchIndex = formatted.find(token, searchIndex)) != std::wstring::npos)
+            {
+                formatted.replace(searchIndex, token.size(), argument.c_str());
+                searchIndex += argument.size();
+            }
+
+            ++argumentIndex;
+        }
+
+        return hstring{ formatted };
+    }
 
     __forceinline float Clamp01(float value)
     {
@@ -539,7 +592,7 @@ namespace winrt::image_channel_viewer::implementation
     {
         InitializeComponent();
         AppWindow().TitleBar().PreferredTheme(Microsoft::UI::Windowing::TitleBarTheme::UseDefaultAppMode);
-        Title(L"Image Channel Viewer");
+        Title(LocalizedString(L"Window.Title.AppName"));
         InitializeModes();
         Populatechannels();
     }
@@ -687,8 +740,8 @@ namespace winrt::image_channel_viewer::implementation
     Windows::Foundation::IAsyncAction MainWindow::ShowAboutDialogAsync()
     {
         Controls::ContentDialog dialog;
-        dialog.Title(box_value(L"关于 Image Channel Viewer"));
-        dialog.PrimaryButtonText(L"关闭");
+        dialog.Title(box_value(FormatLocalizedString(L"About.DialogTitleFormat", { LocalizedString(L"Window.Title.AppName") })));
+        dialog.PrimaryButtonText(LocalizedString(L"Common.Close"));
         dialog.DefaultButton(Controls::ContentDialogButton::Primary);
         dialog.XamlRoot(Content().XamlRoot());
         dialog.Background(Microsoft::UI::Xaml::Media::SolidColorBrush(
@@ -698,7 +751,7 @@ namespace winrt::image_channel_viewer::implementation
         contentPanel.Spacing(12);
 
         Microsoft::UI::Xaml::Controls::TextBlock versionText;
-        versionText.Text(hstring{ L"版本：" } + hstring{ AppVersion });
+        versionText.Text(FormatLocalizedString(L"About.VersionFormat", { hstring{ AppVersion } }));
         versionText.TextWrapping(TextWrapping::WrapWholeWords);
         contentPanel.Children().Append(versionText);
 
@@ -708,19 +761,19 @@ namespace winrt::image_channel_viewer::implementation
         Microsoft::UI::Xaml::Documents::Paragraph authorParagraph;
 
         Microsoft::UI::Xaml::Documents::Run authorPrefix;
-        authorPrefix.Text(L"由 Umaichi/Unnamed2964 制作. 由 ");
+        authorPrefix.Text(LocalizedString(L"About.AuthorPrefix"));
         authorParagraph.Inlines().Append(authorPrefix);
 
         Microsoft::UI::Xaml::Documents::Hyperlink mitLicenseLink;
         mitLicenseLink.NavigateUri(Windows::Foundation::Uri(L"https://github.com/Unnamed2964/winui-image-channel-viewer/blob/master/LICENSE"));
 
         Microsoft::UI::Xaml::Documents::Run mitLicenseRun;
-        mitLicenseRun.Text(L"MIT 许可证");
+        mitLicenseRun.Text(LocalizedString(L"About.MitLicense"));
         mitLicenseLink.Inlines().Append(mitLicenseRun);
         authorParagraph.Inlines().Append(mitLicenseLink);
 
         Microsoft::UI::Xaml::Documents::Run authorSuffix;
-        authorSuffix.Text(L" 许可给你.");
+        authorSuffix.Text(LocalizedString(L"About.AuthorSuffix"));
         authorParagraph.Inlines().Append(authorSuffix);
 
         authorText.Blocks().Append(authorParagraph);
@@ -729,13 +782,13 @@ namespace winrt::image_channel_viewer::implementation
         Microsoft::UI::Xaml::Controls::StackPanel linksPanel;
 
         Microsoft::UI::Xaml::Controls::HyperlinkButton githubLink;
-        githubLink.Content(box_value(L"GitHub 主页"));
+        githubLink.Content(box_value(LocalizedString(L"About.GitHub")));
         githubLink.NavigateUri(Windows::Foundation::Uri(L"https://github.com/Unnamed2964"));
         githubLink.HorizontalAlignment(HorizontalAlignment::Left);
         linksPanel.Children().Append(githubLink);
 
         Microsoft::UI::Xaml::Controls::HyperlinkButton websiteLink;
-        websiteLink.Content(box_value(L"个人网站"));
+        websiteLink.Content(box_value(LocalizedString(L"About.Website")));
         websiteLink.NavigateUri(Windows::Foundation::Uri(L"https://umamichi.moe"));
         websiteLink.HorizontalAlignment(HorizontalAlignment::Left);
         linksPanel.Children().Append(websiteLink);
@@ -750,12 +803,12 @@ namespace winrt::image_channel_viewer::implementation
     void MainWindow::InitializeModes()
     {
         m_modes = {
-            { ColorMode::Original, L"原图", { L"原图" }, true },
-            { ColorMode::RGB, L"RGB", { L"R", L"G", L"B" }, true },
-            { ColorMode::HSL, L"HSL", { L"H", L"S", L"L" }, false },
-            { ColorMode::HSV, L"HSV", { L"H", L"S", L"V" }, false },
-            { ColorMode::CMYK, L"CMYK", { L"C", L"M", L"Y", L"K" }, true },
-            { ColorMode::LAB, L"LAB", { L"L", L"a", L"b" }, false },
+            { ColorMode::Original, LocalizedString(L"Mode.Original.Label"), { LocalizedString(L"Channel.Original.Label") }, true },
+            { ColorMode::RGB, LocalizedString(L"Mode.RGB.Label"), { LocalizedString(L"Channel.RGB.R"), LocalizedString(L"Channel.RGB.G"), LocalizedString(L"Channel.RGB.B") }, true },
+            { ColorMode::HSL, LocalizedString(L"Mode.HSL.Label"), { LocalizedString(L"Channel.HSL.H"), LocalizedString(L"Channel.HSL.S"), LocalizedString(L"Channel.HSL.L") }, false },
+            { ColorMode::HSV, LocalizedString(L"Mode.HSV.Label"), { LocalizedString(L"Channel.HSV.H"), LocalizedString(L"Channel.HSV.S"), LocalizedString(L"Channel.HSV.V") }, false },
+            { ColorMode::CMYK, LocalizedString(L"Mode.CMYK.Label"), { LocalizedString(L"Channel.CMYK.C"), LocalizedString(L"Channel.CMYK.M"), LocalizedString(L"Channel.CMYK.Y"), LocalizedString(L"Channel.CMYK.K") }, true },
+            { ColorMode::LAB, LocalizedString(L"Mode.LAB.Label"), { LocalizedString(L"Channel.LAB.L"), LocalizedString(L"Channel.LAB.A"), LocalizedString(L"Channel.LAB.B") }, false },
         };
 
         auto items = ColorModeFlyout().Items();
@@ -812,7 +865,7 @@ namespace winrt::image_channel_viewer::implementation
         }
 
         GrayscaleAppBarButton().IsEnabled(supportsGrayscaleToggle);
-        GrayscaleAppBarButton().Label(m_showGrayscale ? L"黑白显示" : L"彩色显示");
+        GrayscaleAppBarButton().Label(m_showGrayscale ? LocalizedString(L"DisplayMode.Grayscale") : LocalizedString(L"DisplayMode.Color"));
         ColorDisplayMenuItem().IsChecked(!m_showGrayscale);
         GrayscaleDisplayMenuItem().IsChecked(m_showGrayscale);
     }
@@ -1038,14 +1091,14 @@ namespace winrt::image_channel_viewer::implementation
             RestorePreviewView();
 
             const hstring statusText = definition.mode == ColorMode::Original
-                ? hstring{ L"原图" }
-                : hstring{ definition.label } + hstring{ L" · " } + channelLabel;
+                ? definition.label
+                : FormatLocalizedString(L"Window.Status.ModeChannelFormat", { definition.label, channelLabel });
 
             hstring windowTitle = loadedFileName.empty()
-                ? hstring{ L"Image Channel Viewer" }
+                ? LocalizedString(L"Window.Title.AppName")
                 : loadedFileName;
 
-            Title(windowTitle + hstring{ L" - " } + statusText);
+            Title(FormatLocalizedString(L"Window.Title.WithStatus", { windowTitle, statusText }));
         }
         catch (...)
         {

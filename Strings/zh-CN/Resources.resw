@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="OpenImageButton.Label" xml:space="preserve">
+    <value>选择图片</value>
+  </data>
+  <data name="ColorModeAppBarButton.Label" xml:space="preserve">
+    <value>原图</value>
+  </data>
+  <data name="ColorModeAppBarButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>颜色模式</value>
+  </data>
+  <data name="ColorModeAppBarButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>颜色模式</value>
+  </data>
+  <data name="ChannelAppBarButton.Label" xml:space="preserve">
+    <value>原图</value>
+  </data>
+  <data name="ChannelAppBarButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>分量</value>
+  </data>
+  <data name="ChannelAppBarButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>分量</value>
+  </data>
+  <data name="GrayscaleAppBarButton.Label" xml:space="preserve">
+    <value>彩色显示</value>
+  </data>
+  <data name="GrayscaleAppBarButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>显示模式</value>
+  </data>
+  <data name="GrayscaleAppBarButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>显示模式</value>
+  </data>
+  <data name="ColorDisplayMenuItem.Text" xml:space="preserve">
+    <value>彩色显示</value>
+  </data>
+  <data name="GrayscaleDisplayMenuItem.Text" xml:space="preserve">
+    <value>黑白显示</value>
+  </data>
+  <data name="AboutAppBarButton.Label" xml:space="preserve">
+    <value>关于</value>
+  </data>
+  <data name="EmptyStateTitle.Text" xml:space="preserve">
+    <value>尚未载入图片</value>
+  </data>
+  <data name="EmptyStateDescription.Text" xml:space="preserve">
+    <value>选择图片后，可切换原图、RGB、HSL、HSV、CMYK、LAB 等模式查看不同分量。</value>
+  </data>
+  <data name="Common.Close" xml:space="preserve">
+    <value>关闭</value>
+  </data>
+  <data name="DisplayMode.Color" xml:space="preserve">
+    <value>彩色显示</value>
+  </data>
+  <data name="DisplayMode.Grayscale" xml:space="preserve">
+    <value>黑白显示</value>
+  </data>
+  <data name="About.DialogTitleFormat" xml:space="preserve">
+    <value>关于 {0}</value>
+  </data>
+  <data name="About.VersionFormat" xml:space="preserve">
+    <value>版本：{0}</value>
+  </data>
+  <data name="About.AuthorPrefix" xml:space="preserve">
+    <value>由 Umaichi/Unnamed2964 制作. 由 </value>
+  </data>
+  <data name="About.MitLicense" xml:space="preserve">
+    <value>MIT 许可证</value>
+  </data>
+  <data name="About.AuthorSuffix" xml:space="preserve">
+    <value> 许可给你.</value>
+  </data>
+  <data name="About.GitHub" xml:space="preserve">
+    <value>GitHub 主页</value>
+  </data>
+  <data name="About.Website" xml:space="preserve">
+    <value>个人网站</value>
+  </data>
+  <data name="Mode.Original.Label" xml:space="preserve">
+    <value>原图</value>
+  </data>
+  <data name="Mode.RGB.Label" xml:space="preserve">
+    <value>RGB</value>
+  </data>
+  <data name="Mode.HSL.Label" xml:space="preserve">
+    <value>HSL</value>
+  </data>
+  <data name="Mode.HSV.Label" xml:space="preserve">
+    <value>HSV</value>
+  </data>
+  <data name="Mode.CMYK.Label" xml:space="preserve">
+    <value>CMYK</value>
+  </data>
+  <data name="Mode.LAB.Label" xml:space="preserve">
+    <value>LAB</value>
+  </data>
+  <data name="Channel.Original.Label" xml:space="preserve">
+    <value>原图</value>
+  </data>
+  <data name="Channel.RGB.R" xml:space="preserve">
+    <value>R</value>
+  </data>
+  <data name="Channel.RGB.G" xml:space="preserve">
+    <value>G</value>
+  </data>
+  <data name="Channel.RGB.B" xml:space="preserve">
+    <value>B</value>
+  </data>
+  <data name="Channel.HSL.H" xml:space="preserve">
+    <value>H</value>
+  </data>
+  <data name="Channel.HSL.S" xml:space="preserve">
+    <value>S</value>
+  </data>
+  <data name="Channel.HSL.L" xml:space="preserve">
+    <value>L</value>
+  </data>
+  <data name="Channel.HSV.H" xml:space="preserve">
+    <value>H</value>
+  </data>
+  <data name="Channel.HSV.S" xml:space="preserve">
+    <value>S</value>
+  </data>
+  <data name="Channel.HSV.V" xml:space="preserve">
+    <value>V</value>
+  </data>
+  <data name="Channel.CMYK.C" xml:space="preserve">
+    <value>C</value>
+  </data>
+  <data name="Channel.CMYK.M" xml:space="preserve">
+    <value>M</value>
+  </data>
+  <data name="Channel.CMYK.Y" xml:space="preserve">
+    <value>Y</value>
+  </data>
+  <data name="Channel.CMYK.K" xml:space="preserve">
+    <value>K</value>
+  </data>
+  <data name="Channel.LAB.L" xml:space="preserve">
+    <value>L</value>
+  </data>
+  <data name="Channel.LAB.A" xml:space="preserve">
+    <value>a</value>
+  </data>
+  <data name="Channel.LAB.B" xml:space="preserve">
+    <value>b</value>
+  </data>
+  <data name="Window.Title.AppName" xml:space="preserve">
+    <value>Image Channel Viewer</value>
+  </data>
+  <data name="Window.Status.ModeChannelFormat" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
+  <data name="Window.Title.WithStatus" xml:space="preserve">
+    <value>{0} - {1}</value>
+  </data>
+</root>

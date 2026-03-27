@@ -34,8 +34,8 @@
                     HorizontalAlignment="Left"
                     VerticalAlignment="Center">
                     <AppBarButton
+                        x:Uid="OpenImageButton"
                         x:Name="OpenImageButton"
-                        Label="选择图片"
                         Click="OnOpenImageClick">
                         <AppBarButton.Icon>
                             <FontIcon Glyph="&#xE8B7;" />
@@ -43,10 +43,8 @@
                     </AppBarButton>
 
                     <AppBarButton
-                        x:Name="ColorModeAppBarButton"
-                        Label="原图"
-                        ToolTipService.ToolTip="颜色模式"
-                        AutomationProperties.Name="颜色模式">
+                        x:Uid="ColorModeAppBarButton"
+                        x:Name="ColorModeAppBarButton">
                         <AppBarButton.Icon>
                             <FontIcon Glyph="&#xE790;" />
                         </AppBarButton.Icon>
@@ -56,10 +54,8 @@
                     </AppBarButton>
 
                     <AppBarButton
-                        x:Name="ChannelAppBarButton"
-                        Label="原图"
-                        ToolTipService.ToolTip="分量"
-                        AutomationProperties.Name="分量">
+                        x:Uid="ChannelAppBarButton"
+                        x:Name="ChannelAppBarButton">
                         <AppBarButton.Icon>
                             <FontIcon Glyph="&#xE8EC;" />
                         </AppBarButton.Icon>
@@ -69,25 +65,23 @@
                     </AppBarButton>
 
                     <AppBarButton
-                        x:Name="GrayscaleAppBarButton"
-                        Label="彩色显示"
-                        ToolTipService.ToolTip="显示模式"
-                        AutomationProperties.Name="显示模式">
+                        x:Uid="GrayscaleAppBarButton"
+                        x:Name="GrayscaleAppBarButton">
                         <AppBarButton.Icon>
-                            <FontIcon Glyph="&#xE746;" />
+                            <FontIcon Glyph="&#xE7A1;" />
                         </AppBarButton.Icon>
                         <AppBarButton.Flyout>
                             <MenuFlyout Placement="Bottom">
                                 <RadioMenuFlyoutItem
+                                    x:Uid="ColorDisplayMenuItem"
                                     x:Name="ColorDisplayMenuItem"
                                     GroupName="PreviewDisplayMode"
-                                    Text="彩色显示"
                                     IsChecked="True"
                                     Click="OnGrayscaleItemClick" />
                                 <RadioMenuFlyoutItem
+                                    x:Uid="GrayscaleDisplayMenuItem"
                                     x:Name="GrayscaleDisplayMenuItem"
                                     GroupName="PreviewDisplayMode"
-                                    Text="黑白显示"
                                     Click="OnGrayscaleItemClick" />
                             </MenuFlyout>
                         </AppBarButton.Flyout>
@@ -101,7 +95,7 @@
                     HorizontalAlignment="Right"
                     VerticalAlignment="Center">
                     <AppBarButton
-                        Label="关于"
+                        x:Uid="AboutAppBarButton"
                         Click="OnAboutClick">
                         <AppBarButton.Icon>
                             <FontIcon Glyph="&#xE946;" />
@@ -165,15 +159,15 @@
                         </Viewbox>
                     </Border>
                     <TextBlock
+                        x:Uid="EmptyStateTitle"
                         HorizontalAlignment="Center"
                         FontSize="22"
-                        FontWeight="SemiBold"
-                        Text="尚未载入图片" />
+                        FontWeight="SemiBold" />
                     <TextBlock
+                        x:Uid="EmptyStateDescription"
                         HorizontalAlignment="Center"
                         TextAlignment="Center"
-                        Opacity="0.74"
-                        Text="选择图片后，可切换原图、RGB、HSL、HSV、CMYK、LAB 等模式查看不同分量。" />
+                        Opacity="0.74" />
                 </StackPanel>
             </Grid>
         </Grid>

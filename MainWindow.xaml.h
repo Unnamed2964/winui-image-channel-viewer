@@ -30,7 +30,7 @@ namespace winrt::image_channel_viewer::implementation
         struct ModeDefinition
         {
             ColorMode mode;
-            wchar_t const* label;
+            winrt::hstring label;
             std::vector<winrt::hstring> channels;
             bool supportsGrayscaleToggle;
         };
