@@ -8,6 +8,7 @@ on:
 jobs:
   build-release:
     runs-on: windows-2025
+    environment: "msix build necessary"
     permissions:
       contents: read
     env:
