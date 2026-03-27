@@ -43,27 +43,91 @@ jobs:
         shell: pwsh
         run: |
           $certPath = Join-Path $env:RUNNER_TEMP 'image_channel_viewer-signing.pfx'
-          [System.IO.File]::WriteAllBytes($certPath, [System.Convert]::FromBase64String($env:MSIX_CERT_BASE64))
+          $certBytes = [System.Convert]::FromBase64String(($env:MSIX_CERT_BASE64 -replace '\s', ''))
+          [System.IO.File]::WriteAllBytes($certPath, $certBytes)
+
+          $securePassword = ConvertTo-SecureString -String $env:MSIX_CERT_PASSWORD -AsPlainText -Force
+          $importedCert = Import-PfxCertificate -FilePath $certPath -Password $securePassword -CertStoreLocation Cert:\CurrentUser\My
+
+          if ($null -eq $importedCert) {
+            throw 'Import-PfxCertificate returned no certificate.'
+          }
+
+          if (-not $importedCert.HasPrivateKey) {
+            throw 'The imported certificate does not contain a private key and cannot be used for MSIX signing.'
+          }
+
+          $codeSigningOid = '1.3.6.1.5.5.7.3.3'
+          $hasCodeSigningEku = $false
+          foreach ($extension in $importedCert.Extensions) {
+            if ($extension.Oid.Value -ne '2.5.29.37') {
+              continue
+            }
+
+            $enhancedKeyUsageExtension = [System.Security.Cryptography.X509Certificates.X509EnhancedKeyUsageExtension]$extension
+            foreach ($oid in $enhancedKeyUsageExtension.EnhancedKeyUsages) {
+              if ($oid.Value -eq $codeSigningOid) {
+                $hasCodeSigningEku = $true
+                break
+              }
+            }
+
+            if ($hasCodeSigningEku) {
+              break
+            }
+          }
+
+          if (-not $hasCodeSigningEku) {
+            throw "The imported certificate is not valid for code signing. Subject: $($importedCert.Subject)"
+          }
+
           "cert_path=$certPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "thumbprint=$($importedCert.Thumbprint)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "subject=$($importedCert.Subject)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       # help needed: we have no arm64 device to test whether arm64 build really works
       # message us if you have arm64 device and can help with testing arm64 build
 
       - name: Build Release ${{ matrix.platform }}
         shell: pwsh
-        run: >
-          msbuild image_channel_viewer.sln
-          /restore
-          /t:Build
-          /p:Configuration=Release
-          /p:Platform=${{ matrix.platform }}
-          /p:GenerateAppxPackageOnBuild=true
-          /p:UapAppxPackageBuildMode=SideloadOnly
-          /p:AppxBundle=Never
-          /p:AppxPackageDir=${{ github.workspace }}\${{ matrix.out_dir }}
-          /p:AppxPackageSigningEnabled=${{ env.MSIX_CERT_BASE64 != '' && env.MSIX_CERT_PASSWORD != '' }}
-          /p:PackageCertificateKeyFile="${{ steps.signing-cert.outputs.cert_path }}"
-          /p:PackageCertificatePassword="${{ env.MSIX_CERT_PASSWORD }}"
+        run: |
+          $msbuildArgs = @(
+            'image_channel_viewer.sln'
+            '/restore'
+            '/t:Build'
+            '/p:Configuration=Release'
+            '/p:Platform=${{ matrix.platform }}'
+            '/p:GenerateAppxPackageOnBuild=true'
+            '/p:UapAppxPackageBuildMode=SideloadOnly'
+            '/p:AppxBundle=Never'
+            '/p:AppxPackageDir=${{ github.workspace }}\${{ matrix.out_dir }}'
+          )
+
+          if ('${{ steps.signing-cert.outputs.thumbprint }}' -ne '') {
+            $msbuildArgs += '/p:AppxPackageSigningEnabled=true'
+            $msbuildArgs += '/p:PackageCertificateThumbprint=${{ steps.signing-cert.outputs.thumbprint }}'
+            $msbuildArgs += '/p:PackageCertificateKeyFile='
+            $msbuildArgs += '/p:PackageCertificatePassword='
+          }
+          else {
+            $msbuildArgs += '/p:AppxPackageSigningEnabled=false'
+          }
+
+          & msbuild @msbuildArgs
+
+      - name: Remove imported signing certificate
+        if: always() && steps.signing-cert.outputs.thumbprint != ''
+        shell: pwsh
+        run: |
+          $cert = Get-ChildItem Cert:\CurrentUser\My | Where-Object Thumbprint -eq '${{ steps.signing-cert.outputs.thumbprint }}'
+          if ($null -ne $cert) {
+            Remove-Item -Path $cert.PSPath -Force
+          }
+
+          $certPath = '${{ steps.signing-cert.outputs.cert_path }}'
+          if ($certPath -and (Test-Path $certPath)) {
+            Remove-Item $certPath -Force
+          }
 
       - name: Package ${{ matrix.platform }} artifacts
         id: package
