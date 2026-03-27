@@ -21,12 +21,15 @@ jobs:
           - platform: x64
             asset_suffix: win-x64
             out_dir: artifacts/x64/
+            keep_dependency_dirs: x86,x64
           - platform: x86
             asset_suffix: win-x86
             out_dir: artifacts/x86/
+            keep_dependency_dirs: x86
           - platform: ARM64
             asset_suffix: win-arm64
             out_dir: artifacts/arm64/
+            keep_dependency_dirs: x86,arm,arm64
 
     steps:
       - name: Checkout repository
@@ -136,9 +139,18 @@ jobs:
           $tag = "${{ github.ref_name }}"
           $outputDir = Join-Path $env:GITHUB_WORKSPACE "${{ matrix.out_dir }}"
           $assetName = "image_channel_viewer-$tag-${{ matrix.asset_suffix }}.zip"
+          $dependenciesDir = Join-Path $outputDir 'Dependencies'
+          $knownArchitectureDirs = @('x86', 'x64', 'arm', 'arm64')
+          $keepDependencyDirs = @('${{ matrix.keep_dependency_dirs }}'.Split(',', [System.StringSplitOptions]::RemoveEmptyEntries))
 
           if (-not (Test-Path $outputDir)) {
             throw "Release output directory not found: $outputDir"
+          }
+
+          if (Test-Path $dependenciesDir) {
+            Get-ChildItem -Path $dependenciesDir -Directory |
+              Where-Object { $_.Name -in $knownArchitectureDirs -and $_.Name -notin $keepDependencyDirs } |
+              Remove-Item -Recurse -Force
           }
 
           if (Test-Path $assetName) {
