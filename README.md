@@ -2,7 +2,7 @@
 
 ## 简介
 
-本项目是一个基于 Modern C++ (>= C++20) + C++/WinRT + WinUI 3 的图片通道查看器，现代 Windows 11 风格，采用 Mica 效果的桌面应用。
+本项目是一个基于 Modern C++ (>= C++20) + C++/WinRT + WinUI 3 的图片通道查看器，现代 Windows 11 风格，采用 Mica 效果的桌面打包应用（MSIX）。
 
 **下载：** [Releases · Unnamed2964/winui-image-channel-viewer](https://github.com/Unnamed2964/winui-image-channel-viewer/releases)
 
@@ -30,7 +30,8 @@
 ## 项目结构
 
 - image_channel_viewer.sln: Visual Studio 解决方案
-- image_channel_viewer.vcxproj: WinUI 3 C++/WinRT 项目文件
+- image_channel_viewer.vcxproj: WinUI 3 C++/WinRT 单项目 MSIX 工程
+- Package.appxmanifest: MSIX 包清单
 - MainWindow.xaml: 主界面布局
 - MainWindow.xaml.cpp: 图片加载、颜色空间转换与通道渲染逻辑
 - App.xaml / App.xaml.cpp: 应用入口
@@ -57,15 +58,31 @@
 2. 选择 Debug | x64 或 Release | x64
 3. 直接生成并运行
 
+如果要生成可分发的 MSIX 包，可以使用 Visual Studio 的 Package and Publish 菜单，或者使用下面的 MSBuild 命令：
+
+```powershell
+& MSBuild.exe ".\image_channel_viewer.sln" /restore /t:Build /p:Configuration=Release /p:Platform=x64 /p:GenerateAppxPackageOnBuild=true /p:AppxPackageSigningEnabled=false
+```
+
+上面的命令会生成未签名的 sideload MSIX，仅适合本地测试或手动分发。
+
+如果要生成可直接安装的已签名 MSIX，你需要自行提供代码签名证书 `.pfx` 文件，仓库不会附带该文件。可以在本机自建自签名证书，或者使用外部 CA 签发的正式证书。带签名的本地构建命令示例如下：
+
+```powershell
+& MSBuild.exe ".\image_channel_viewer.sln" /restore /t:Build /p:Configuration=Release /p:Platform=x64 /p:GenerateAppxPackageOnBuild=true /p:PackageCertificateKeyFile="D:\certs\yourname.pfx" /p:PackageCertificatePassword="你的证书密码"
+```
+
+请确保 `Package.appxmanifest` 中的 `Identity Publisher` 与证书主题一致，例如证书主题是 `CN=Unnamed2964`，那么包清单中的 Publisher 也必须是 `CN=Unnamed2964`，否则签名或安装会失败。
+
 构建前会自动执行版本生成脚本：
 
 - 从 Git tag 或提交信息推导显示版本号
-- 自动更新 app.manifest 中的清单版本
+- 自动更新 app.manifest 和 Package.appxmanifest 中的版本号
 - 自动生成供应用读取的版本头文件
 
 请参见 [Git 版本号、自动写入与自动发布方案记录](./docs/git-versioning-and-release-notes.md) 中的 GPT 问答记录
 
-也可以通过 MSBuild 构建（请确保 MSBuild.exe 所在目录在 PATH 中）：
+也可以通过 MSBuild 执行普通构建（请确保 MSBuild.exe 所在目录在 PATH 中）：
 
 ```powershell
 &MSBuild.exe ".\image_channel_viewer.sln" /restore /t:Build /p:Configuration=Release /p:Platform=x64
@@ -104,9 +121,16 @@ git push origin v1.0.0
 
 仓库包含一个 GitHub Actions 发布工作流：
 
-- 当推送 vX.Y.Z tag 时自动构建 Release | x64
-- 自动打包 x64/Release/image_channel_viewer
+- 当推送 vX.Y.Z tag 时自动构建各平台 Release 包
+- 自动生成包含 MSIX、依赖包和安装脚本的压缩包
 - 自动创建 GitHub Release 并上传 zip 资产
+
+如果要让 GitHub Actions 生成已签名的 MSIX，不要把 `.pfx` 文件直接提交到仓库，而是应当在仓库 Secrets 中提供：
+
+- `MSIX_CERT_BASE64`: 证书 `.pfx` 文件的 Base64 内容
+- `MSIX_CERT_PASSWORD`: 证书密码
+
+工作流会在运行时把证书还原到临时目录后再参与构建。若未配置这两个 Secrets，则当前工作流会退回到生成未签名的 sideload MSIX。
 
 ## 附注
 

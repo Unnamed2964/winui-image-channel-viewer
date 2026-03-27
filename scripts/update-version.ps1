@@ -92,6 +92,33 @@ function Get-VersionInfo {
     }
 }
 
+function Save-Utf8Xml {
+    param(
+        [Parameter(Mandatory = $true)]
+        [xml]$Document,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    $xmlDeclaration = $Document.FirstChild -as [System.Xml.XmlDeclaration]
+    if ($xmlDeclaration) {
+        $xmlDeclaration.Encoding = 'utf-8'
+    }
+
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    $xmlSettings = New-Object System.Xml.XmlWriterSettings
+    $xmlSettings.Encoding = $utf8NoBom
+    $xmlSettings.Indent = $true
+    $xmlSettings.OmitXmlDeclaration = $false
+
+    $memoryStream = New-Object System.IO.MemoryStream
+    $xmlWriter = [System.Xml.XmlWriter]::Create($memoryStream, $xmlSettings)
+    $Document.Save($xmlWriter)
+    $xmlWriter.Close()
+    [System.IO.File]::WriteAllBytes($Path, $memoryStream.ToArray())
+}
+
 $versionInfo = Get-VersionInfo
 
 $manifestPath = Join-Path $ProjectRoot 'app.manifest'
@@ -99,28 +126,28 @@ $manifestPath = Join-Path $ProjectRoot 'app.manifest'
 $namespaceManager = New-Object System.Xml.XmlNamespaceManager($manifestXml.NameTable)
 $namespaceManager.AddNamespace('asmv1', 'urn:schemas-microsoft-com:asm.v1')
 $assemblyIdentity = $manifestXml.SelectSingleNode('/asmv1:assembly/asmv1:assemblyIdentity', $namespaceManager)
-$xmlDeclaration = $manifestXml.FirstChild -as [System.Xml.XmlDeclaration]
 
 if (-not $assemblyIdentity) {
     throw 'assemblyIdentity element not found in app.manifest'
 }
 
 $assemblyIdentity.SetAttribute('version', $versionInfo.ManifestVersion)
-if ($xmlDeclaration) {
-    $xmlDeclaration.Encoding = 'utf-8'
+Save-Utf8Xml -Document $manifestXml -Path $manifestPath
+
+$packageManifestPath = Join-Path $ProjectRoot 'Package.appxmanifest'
+if (Test-Path $packageManifestPath) {
+    [xml]$packageManifestXml = Get-Content -Path $packageManifestPath -Raw -Encoding UTF8
+    $packageNamespaceManager = New-Object System.Xml.XmlNamespaceManager($packageManifestXml.NameTable)
+    $packageNamespaceManager.AddNamespace('appx', 'http://schemas.microsoft.com/appx/manifest/foundation/windows10')
+    $identity = $packageManifestXml.SelectSingleNode('/appx:Package/appx:Identity', $packageNamespaceManager)
+
+    if (-not $identity) {
+        throw 'Identity element not found in Package.appxmanifest'
+    }
+
+    $identity.SetAttribute('Version', $versionInfo.ManifestVersion)
+    Save-Utf8Xml -Document $packageManifestXml -Path $packageManifestPath
 }
-
-$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-$xmlSettings = New-Object System.Xml.XmlWriterSettings
-$xmlSettings.Encoding = $utf8NoBom
-$xmlSettings.Indent = $true
-$xmlSettings.OmitXmlDeclaration = $false
-
-$memoryStream = New-Object System.IO.MemoryStream
-$xmlWriter = [System.Xml.XmlWriter]::Create($memoryStream, $xmlSettings)
-$manifestXml.Save($xmlWriter)
-$xmlWriter.Close()
-[System.IO.File]::WriteAllBytes($manifestPath, $memoryStream.ToArray())
 
 $generatedDir = Join-Path $ProjectRoot 'Generated Files'
 if (-not (Test-Path $generatedDir)) {
