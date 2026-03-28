@@ -19,6 +19,8 @@ namespace winrt::image_channel_viewer::implementation
     {
         MainWindow();
 
+        winrt::hstring LocalizedString(winrt::hstring const& resourceId);
+
         void OnOpenImageClick(IInspectable const& sender, Microsoft::UI::Xaml::RoutedEventArgs const& args);
         void OnAboutClick(IInspectable const& sender, Microsoft::UI::Xaml::RoutedEventArgs const& args);
         void OnColorModeItemClick(IInspectable const& sender, Microsoft::UI::Xaml::RoutedEventArgs const& args);

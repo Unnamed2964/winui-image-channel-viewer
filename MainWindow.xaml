@@ -34,8 +34,8 @@
                     HorizontalAlignment="Left"
                     VerticalAlignment="Center">
                     <AppBarButton
-                        x:Uid="OpenImageButton"
                         x:Name="OpenImageButton"
+                        Label="{x:Bind LocalizedString('OpenImageButton.Label'), Mode=OneWay}"
                         Click="OnOpenImageClick">
                         <AppBarButton.Icon>
                             <FontIcon Glyph="&#xE8B7;" />
@@ -43,7 +43,6 @@
                     </AppBarButton>
 
                     <AppBarButton
-                        x:Uid="ColorModeAppBarButton"
                         x:Name="ColorModeAppBarButton">
                         <AppBarButton.Icon>
                             <FontIcon Glyph="&#xE790;" />
@@ -54,7 +53,6 @@
                     </AppBarButton>
 
                     <AppBarButton
-                        x:Uid="ChannelAppBarButton"
                         x:Name="ChannelAppBarButton">
                         <AppBarButton.Icon>
                             <FontIcon Glyph="&#xE8EC;" />
@@ -65,7 +63,6 @@
                     </AppBarButton>
 
                     <AppBarButton
-                        x:Uid="GrayscaleAppBarButton"
                         x:Name="GrayscaleAppBarButton">
                         <AppBarButton.Icon>
                             <FontIcon Glyph="&#xE7A1;" />
@@ -73,14 +70,14 @@
                         <AppBarButton.Flyout>
                             <MenuFlyout Placement="Bottom">
                                 <RadioMenuFlyoutItem
-                                    x:Uid="ColorDisplayMenuItem"
                                     x:Name="ColorDisplayMenuItem"
+                                    Text="{x:Bind LocalizedString('ColorDisplayMenuItem.Text'), Mode=OneWay}"
                                     GroupName="PreviewDisplayMode"
                                     IsChecked="True"
                                     Click="OnGrayscaleItemClick" />
                                 <RadioMenuFlyoutItem
-                                    x:Uid="GrayscaleDisplayMenuItem"
                                     x:Name="GrayscaleDisplayMenuItem"
+                                    Text="{x:Bind LocalizedString('GrayscaleDisplayMenuItem.Text'), Mode=OneWay}"
                                     GroupName="PreviewDisplayMode"
                                     Click="OnGrayscaleItemClick" />
                             </MenuFlyout>
@@ -95,7 +92,8 @@
                     HorizontalAlignment="Right"
                     VerticalAlignment="Center">
                     <AppBarButton
-                        x:Uid="AboutAppBarButton"
+                        x:Name="AboutAppBarButton"
+                        Label="{x:Bind LocalizedString('AboutAppBarButton.Label'), Mode=OneWay}"
                         Click="OnAboutClick">
                         <AppBarButton.Icon>
                             <FontIcon Glyph="&#xE946;" />
@@ -159,12 +157,14 @@
                         </Viewbox>
                     </Border>
                     <TextBlock
-                        x:Uid="EmptyStateTitle"
+                        x:Name="EmptyStateTitle"
+                        Text="{x:Bind LocalizedString('EmptyStateTitle.Text'), Mode=OneWay}"
                         HorizontalAlignment="Center"
                         FontSize="22"
                         FontWeight="SemiBold" />
                     <TextBlock
-                        x:Uid="EmptyStateDescription"
+                        x:Name="EmptyStateDescription"
+                        Text="{x:Bind LocalizedString('EmptyStateDescription.Text'), Mode=OneWay}"
                         HorizontalAlignment="Center"
                         TextAlignment="Center"
                         Opacity="0.74" />

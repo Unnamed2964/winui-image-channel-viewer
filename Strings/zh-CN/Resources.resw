@@ -18,30 +18,6 @@
   <data name="ColorModeAppBarButton.Label" xml:space="preserve">
     <value>原图</value>
   </data>
-  <data name="ColorModeAppBarButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
-    <value>颜色模式</value>
-  </data>
-  <data name="ColorModeAppBarButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
-    <value>颜色模式</value>
-  </data>
-  <data name="ChannelAppBarButton.Label" xml:space="preserve">
-    <value>原图</value>
-  </data>
-  <data name="ChannelAppBarButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
-    <value>分量</value>
-  </data>
-  <data name="ChannelAppBarButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
-    <value>分量</value>
-  </data>
-  <data name="GrayscaleAppBarButton.Label" xml:space="preserve">
-    <value>彩色显示</value>
-  </data>
-  <data name="GrayscaleAppBarButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
-    <value>显示模式</value>
-  </data>
-  <data name="GrayscaleAppBarButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
-    <value>显示模式</value>
-  </data>
   <data name="ColorDisplayMenuItem.Text" xml:space="preserve">
     <value>彩色显示</value>
   </data>
@@ -157,7 +133,7 @@
     <value>b</value>
   </data>
   <data name="Window.Title.AppName" xml:space="preserve">
-    <value>Image Channel Viewer</value>
+    <value>图片分量查看器</value>
   </data>
   <data name="Window.Status.ModeChannelFormat" xml:space="preserve">
     <value>{0} · {1}</value>

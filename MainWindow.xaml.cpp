@@ -14,6 +14,8 @@ using namespace Microsoft::UI::Xaml;
 namespace
 {
     using ResourceLoader = winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceLoader;
+    using ResourceManager = winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceManager;
+    using ResourceMap = winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceMap;
 
     struct __declspec(uuid("905a0fef-bc53-11df-8c49-001e4fc686da")) IBufferByteAccess : ::IUnknown
     {
@@ -27,13 +29,21 @@ namespace
 
     using ColorMode = winrt::image_channel_viewer::implementation::ColorMode;
 
-    ResourceLoader& LocalizedResources()
+    ResourceManager& AppResourceManager()
     {
-        static ResourceLoader loader{
-            ResourceLoader::GetDefaultResourceFilePath(),
-            L"Resources"
-        };
-        return loader;
+        static ResourceManager manager{ ResourceLoader::GetDefaultResourceFilePath() };
+        return manager;
+    }
+
+    ResourceMap& AppResourceMap()
+    {
+        static ResourceMap resourceMap = AppResourceManager().MainResourceMap().GetSubtree(L"Resources");
+        return resourceMap;
+    }
+
+    winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceContext CreateResourceContext()
+    {
+        return AppResourceManager().CreateResourceContext();
     }
 
     hstring LocalizedString(std::wstring_view resourceId)
@@ -43,8 +53,18 @@ namespace
             std::wstring normalizedResourceId{ resourceId };
             std::replace(normalizedResourceId.begin(), normalizedResourceId.end(), L'.', L'/');
 
-            hstring const value = LocalizedResources().GetString(hstring{ normalizedResourceId });
-            return value.empty() ? hstring{ resourceId } : value;
+            auto const context = CreateResourceContext();
+            auto const candidate = AppResourceMap().TryGetValue(hstring{ normalizedResourceId }, context);
+            if (candidate)
+            {
+                hstring const value = candidate.ValueAsString();
+                if (!value.empty())
+                {
+                    return value;
+                }
+            }
+
+            return hstring{ resourceId };
         }
         catch (...)
         {
@@ -592,9 +612,14 @@ namespace winrt::image_channel_viewer::implementation
     {
         InitializeComponent();
         AppWindow().TitleBar().PreferredTheme(Microsoft::UI::Windowing::TitleBarTheme::UseDefaultAppMode);
-        Title(LocalizedString(L"Window.Title.AppName"));
         InitializeModes();
         Populatechannels();
+        Title(LocalizedString(L"Window.Title.AppName"));
+    }
+
+    winrt::hstring MainWindow::LocalizedString(winrt::hstring const& resourceId)
+    {
+        return ::LocalizedString(std::wstring_view{ resourceId.c_str() });
     }
 
     void MainWindow::OnOpenImageClick(
