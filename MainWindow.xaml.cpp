@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "ContinuousPixelBuffer.h"
 #include "MainWindow.xaml.h"
+#include "ConfigStore.h"
 #include "AppVersion.g.h"
 #include <winrt/Microsoft.Windows.ApplicationModel.Resources.h>
 
@@ -9,13 +10,14 @@
 #endif
 
 using namespace winrt;
-using namespace Microsoft::UI::Xaml;
+using namespace winrt::Microsoft::UI::Xaml;
 
 namespace
 {
     using ResourceLoader = winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceLoader;
     using ResourceManager = winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceManager;
     using ResourceMap = winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceMap;
+    using KnownResourceQualifierName = winrt::Microsoft::Windows::ApplicationModel::Resources::KnownResourceQualifierName;
 
     struct __declspec(uuid("905a0fef-bc53-11df-8c49-001e4fc686da")) IBufferByteAccess : ::IUnknown
     {
@@ -41,9 +43,32 @@ namespace
         return resourceMap;
     }
 
+    bool IsSupportedLanguageTag(std::wstring_view languageTag)
+    {
+        return languageTag == L"zh-CN" || languageTag == L"en-US";
+    }
+
+    hstring EffectiveLanguageOverrideTag()
+    {
+        auto const storedLanguage = ::image_channel_viewer::LoadConfiguredLanguagePreference();
+        if (!storedLanguage.empty())
+        {
+            return IsSupportedLanguageTag(storedLanguage.c_str()) ? storedLanguage : hstring{};
+        }
+
+        return {};
+    }
+
     winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceContext CreateResourceContext()
     {
-        return AppResourceManager().CreateResourceContext();
+        auto context = AppResourceManager().CreateResourceContext();
+        auto const languageTag = EffectiveLanguageOverrideTag();
+        if (!languageTag.empty())
+        {
+            context.QualifierValues().Insert(KnownResourceQualifierName::Language(), languageTag);
+        }
+
+        return context;
     }
 
     hstring LocalizedString(std::wstring_view resourceId)
@@ -95,6 +120,24 @@ namespace
         }
 
         return hstring{ formatted };
+    }
+
+    hstring StoredLanguagePreference()
+    {
+        return ::image_channel_viewer::LoadConfiguredLanguagePreference();
+    }
+
+    void StoreLanguagePreference(hstring const& languageTag)
+    {
+        ::image_channel_viewer::SaveConfiguredLanguagePreference(languageTag);
+    }
+
+    Controls::ComboBoxItem CreateLanguageOption(hstring const& label, hstring const& tag)
+    {
+        Controls::ComboBoxItem item;
+        item.Content(box_value(label));
+        item.Tag(box_value(tag));
+        return item;
     }
 
     __forceinline float Clamp01(float value)
@@ -629,6 +672,13 @@ namespace winrt::image_channel_viewer::implementation
         LoadImageAsync();
     }
 
+    void MainWindow::OnSettingsClick(
+        [[maybe_unused]] IInspectable const& sender,
+        [[maybe_unused]] RoutedEventArgs const& args)
+    {
+        ShowSettingsDialogAsync();
+    }
+
     void MainWindow::OnAboutClick(
         [[maybe_unused]] IInspectable const& sender,
         [[maybe_unused]] RoutedEventArgs const& args)
@@ -823,6 +873,89 @@ namespace winrt::image_channel_viewer::implementation
         dialog.Content(contentPanel);
 
         co_await dialog.ShowAsync();
+    }
+
+    Windows::Foundation::IAsyncAction MainWindow::ShowSettingsDialogAsync()
+    {
+        Controls::ContentDialog dialog;
+        dialog.Title(box_value(LocalizedString(L"Settings.DialogTitle")));
+        dialog.PrimaryButtonText(LocalizedString(L"Common.Save"));
+        dialog.CloseButtonText(LocalizedString(L"Common.Cancel"));
+        dialog.DefaultButton(Controls::ContentDialogButton::Primary);
+        dialog.XamlRoot(Content().XamlRoot());
+
+        Controls::StackPanel contentPanel;
+        contentPanel.Spacing(12);
+
+        Controls::TextBlock descriptionText;
+        descriptionText.Text(LocalizedString(L"Settings.DialogDescription"));
+        descriptionText.TextWrapping(TextWrapping::WrapWholeWords);
+        contentPanel.Children().Append(descriptionText);
+
+        Controls::TextBlock languageLabel;
+        languageLabel.Text(LocalizedString(L"Settings.Language.Label"));
+        contentPanel.Children().Append(languageLabel);
+
+        Controls::ComboBox languageComboBox;
+        languageComboBox.MinWidth(240.0);
+        languageComboBox.Items().Append(CreateLanguageOption(LocalizedString(L"Settings.Language.System"), hstring{}));
+        languageComboBox.Items().Append(CreateLanguageOption(LocalizedString(L"Settings.Language.ZhCN"), hstring{ L"zh-CN" }));
+        languageComboBox.Items().Append(CreateLanguageOption(LocalizedString(L"Settings.Language.EnUS"), hstring{ L"en-US" }));
+
+        auto const storedLanguage = StoredLanguagePreference();
+        uint32_t selectedIndex = 0;
+        if (storedLanguage == L"zh-CN")
+        {
+            selectedIndex = 1;
+        }
+        else if (storedLanguage == L"en-US")
+        {
+            selectedIndex = 2;
+        }
+        languageComboBox.SelectedIndex(selectedIndex);
+        contentPanel.Children().Append(languageComboBox);
+
+        Controls::TextBlock restartHint;
+        restartHint.Text(LocalizedString(L"Settings.Language.RestartHint"));
+        restartHint.TextWrapping(TextWrapping::WrapWholeWords);
+        restartHint.Opacity(0.74);
+        contentPanel.Children().Append(restartHint);
+
+        dialog.Content(contentPanel);
+
+        auto const result = co_await dialog.ShowAsync();
+        if (result != Controls::ContentDialogResult::Primary)
+        {
+            co_return;
+        }
+
+        auto const selectedItem = languageComboBox.SelectedItem().try_as<Controls::ComboBoxItem>();
+        if (!selectedItem)
+        {
+            co_return;
+        }
+
+        auto const newLanguage = unbox_value_or<hstring>(selectedItem.Tag(), hstring{});
+        auto const previousLanguage = StoredLanguagePreference();
+        StoreLanguagePreference(newLanguage);
+
+        if (newLanguage == previousLanguage)
+        {
+            co_return;
+        }
+
+        Controls::ContentDialog restartDialog;
+        restartDialog.Title(box_value(LocalizedString(L"Settings.RestartDialog.Title")));
+        restartDialog.CloseButtonText(LocalizedString(L"Common.Close"));
+        restartDialog.DefaultButton(Controls::ContentDialogButton::Close);
+        restartDialog.XamlRoot(Content().XamlRoot());
+
+        Controls::TextBlock restartMessage;
+        restartMessage.Text(LocalizedString(L"Settings.RestartDialog.Message"));
+        restartMessage.TextWrapping(TextWrapping::WrapWholeWords);
+        restartDialog.Content(restartMessage);
+
+        co_await restartDialog.ShowAsync();
     }
 
     void MainWindow::InitializeModes()

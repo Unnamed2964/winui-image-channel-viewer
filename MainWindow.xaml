@@ -92,6 +92,15 @@
                     HorizontalAlignment="Right"
                     VerticalAlignment="Center">
                     <AppBarButton
+                        x:Name="SettingsAppBarButton"
+                        Label="{x:Bind LocalizedString('SettingsAppBarButton.Label'), Mode=OneWay}"
+                        Click="OnSettingsClick">
+                        <AppBarButton.Icon>
+                            <FontIcon Glyph="&#xE713;" />
+                        </AppBarButton.Icon>
+                    </AppBarButton>
+
+                    <AppBarButton
                         x:Name="AboutAppBarButton"
                         Label="{x:Bind LocalizedString('AboutAppBarButton.Label'), Mode=OneWay}"
                         Click="OnAboutClick">

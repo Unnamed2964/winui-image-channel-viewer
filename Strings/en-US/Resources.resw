@@ -27,6 +27,9 @@
   <data name="AboutAppBarButton.Label" xml:space="preserve">
     <value>About</value>
   </data>
+  <data name="SettingsAppBarButton.Label" xml:space="preserve">
+    <value>Settings</value>
+  </data>
   <data name="EmptyStateTitle.Text" xml:space="preserve">
     <value>No image loaded</value>
   </data>
@@ -35,6 +38,39 @@
   </data>
   <data name="Common.Close" xml:space="preserve">
     <value>Close</value>
+  </data>
+  <data name="Common.Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="Common.Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Settings.DialogTitle" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="Settings.DialogDescription" xml:space="preserve">
+    <value>Adjust common app options. Language changes in the current version take effect the next time the app starts.</value>
+  </data>
+  <data name="Settings.Language.Label" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="Settings.Language.System" xml:space="preserve">
+    <value>Follow system</value>
+  </data>
+  <data name="Settings.Language.ZhCN" xml:space="preserve">
+    <value>Simplified Chinese</value>
+  </data>
+  <data name="Settings.Language.EnUS" xml:space="preserve">
+    <value>English</value>
+  </data>
+  <data name="Settings.Language.RestartHint" xml:space="preserve">
+    <value>After saving, the selected language will be applied the next time the app starts.</value>
+  </data>
+  <data name="Settings.RestartDialog.Title" xml:space="preserve">
+    <value>Language saved</value>
+  </data>
+  <data name="Settings.RestartDialog.Message" xml:space="preserve">
+    <value>Your language preference has been saved. Restart the app to apply the new display language.</value>
   </data>
   <data name="DisplayMode.Color" xml:space="preserve">
     <value>Color display</value>

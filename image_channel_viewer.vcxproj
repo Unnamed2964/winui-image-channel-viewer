@@ -95,6 +95,9 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalOptions>%(AdditionalOptions) /bigobj /utf-8</AdditionalOptions>
     </ClCompile>
+    <Link>
+      <AdditionalDependencies>shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
     <ClCompile>
