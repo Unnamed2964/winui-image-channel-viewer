@@ -19,7 +19,10 @@ namespace winrt::image_channel_viewer::implementation
     {
         MainWindow();
 
+        winrt::hstring LocalizedString(winrt::hstring const& resourceId);
+
         void OnOpenImageClick(IInspectable const& sender, Microsoft::UI::Xaml::RoutedEventArgs const& args);
+        void OnSettingsClick(IInspectable const& sender, Microsoft::UI::Xaml::RoutedEventArgs const& args);
         void OnAboutClick(IInspectable const& sender, Microsoft::UI::Xaml::RoutedEventArgs const& args);
         void OnColorModeItemClick(IInspectable const& sender, Microsoft::UI::Xaml::RoutedEventArgs const& args);
         void OnchannelItemClick(IInspectable const& sender, Microsoft::UI::Xaml::RoutedEventArgs const& args);
@@ -30,12 +33,13 @@ namespace winrt::image_channel_viewer::implementation
         struct ModeDefinition
         {
             ColorMode mode;
-            wchar_t const* label;
+            winrt::hstring label;
             std::vector<winrt::hstring> channels;
             bool supportsGrayscaleToggle;
         };
 
         winrt::Windows::Foundation::IAsyncAction LoadImageAsync();
+        winrt::Windows::Foundation::IAsyncAction ShowSettingsDialogAsync();
         winrt::Windows::Foundation::IAsyncAction ShowAboutDialogAsync();
         void InitializeModes();
         void Populatechannels();

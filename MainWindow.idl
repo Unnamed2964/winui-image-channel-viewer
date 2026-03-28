@@ -4,5 +4,6 @@ namespace image_channel_viewer
     runtimeclass MainWindow : Microsoft.UI.Xaml.Window
     {
         MainWindow();
+        String LocalizedString(String resourceId);
     }
 }

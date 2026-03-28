@@ -1,17 +1,21 @@
 #pragma once
 
 #include <windows.h>
+#include <appmodel.h>
 #include <unknwn.h>
 #include <restrictederrorinfo.h>
 #include <hstring.h>
 #include <microsoft.ui.xaml.window.h>
 #include <shobjidl.h>
+#include <shlobj_core.h>
 #include <robuffer.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <filesystem>
+#include <fstream>
 #include <limits>
 #include <optional>
 #include <string>
@@ -34,6 +38,7 @@
 #include <winrt/Microsoft.UI.Dispatching.h>
 #include <winrt/Microsoft.UI.Windowing.h>
 #include <winrt/Microsoft.UI.Xaml.h>
+#include <winrt/Microsoft.UI.Xaml.Automation.h>
 #include <winrt/Microsoft.UI.Xaml.Controls.h>
 #include <winrt/Microsoft.UI.Xaml.Controls.Primitives.h>
 #include <winrt/Microsoft.UI.Xaml.Data.h>

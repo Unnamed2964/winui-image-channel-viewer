@@ -1,17 +1,24 @@
 #include "pch.h"
 #include "ContinuousPixelBuffer.h"
 #include "MainWindow.xaml.h"
+#include "ConfigStore.h"
 #include "AppVersion.g.h"
+#include <winrt/Microsoft.Windows.ApplicationModel.Resources.h>
 
 #if __has_include("MainWindow.g.cpp")
 #include "MainWindow.g.cpp"
 #endif
 
 using namespace winrt;
-using namespace Microsoft::UI::Xaml;
+using namespace winrt::Microsoft::UI::Xaml;
 
 namespace
 {
+    using ResourceLoader = winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceLoader;
+    using ResourceManager = winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceManager;
+    using ResourceMap = winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceMap;
+    using KnownResourceQualifierName = winrt::Microsoft::Windows::ApplicationModel::Resources::KnownResourceQualifierName;
+
     struct __declspec(uuid("905a0fef-bc53-11df-8c49-001e4fc686da")) IBufferByteAccess : ::IUnknown
     {
         virtual HRESULT __stdcall Buffer(uint8_t** value) = 0;
@@ -23,6 +30,115 @@ namespace
     };
 
     using ColorMode = winrt::image_channel_viewer::implementation::ColorMode;
+
+    ResourceManager& AppResourceManager()
+    {
+        static ResourceManager manager{ ResourceLoader::GetDefaultResourceFilePath() };
+        return manager;
+    }
+
+    ResourceMap& AppResourceMap()
+    {
+        static ResourceMap resourceMap = AppResourceManager().MainResourceMap().GetSubtree(L"Resources");
+        return resourceMap;
+    }
+
+    bool IsSupportedLanguageTag(std::wstring_view languageTag)
+    {
+        return languageTag == L"zh-CN" || languageTag == L"en-US";
+    }
+
+    hstring EffectiveLanguageOverrideTag()
+    {
+        auto const storedLanguage = ::image_channel_viewer::LoadConfiguredLanguagePreference();
+        if (!storedLanguage.empty())
+        {
+            return IsSupportedLanguageTag(storedLanguage.c_str()) ? storedLanguage : hstring{};
+        }
+
+        return {};
+    }
+
+    winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceContext CreateResourceContext()
+    {
+        auto context = AppResourceManager().CreateResourceContext();
+        auto const languageTag = EffectiveLanguageOverrideTag();
+        if (!languageTag.empty())
+        {
+            context.QualifierValues().Insert(KnownResourceQualifierName::Language(), languageTag);
+        }
+
+        return context;
+    }
+
+    hstring LocalizedString(std::wstring_view resourceId)
+    {
+        try
+        {
+            std::wstring normalizedResourceId{ resourceId };
+            std::replace(normalizedResourceId.begin(), normalizedResourceId.end(), L'.', L'/');
+
+            auto const context = CreateResourceContext();
+            auto const candidate = AppResourceMap().TryGetValue(hstring{ normalizedResourceId }, context);
+            if (candidate)
+            {
+                hstring const value = candidate.ValueAsString();
+                if (!value.empty())
+                {
+                    return value;
+                }
+            }
+
+            return hstring{ resourceId };
+        }
+        catch (...)
+        {
+            return hstring{ resourceId };
+        }
+    }
+
+    hstring FormatLocalizedString(std::wstring_view resourceId, std::initializer_list<hstring> arguments)
+    {
+        // std::v_format is intentionally not used because it may introduce unexpected
+        // behaviors and potential attack surfaces with an externally constructed format 
+        // strings and an ill-written custom global std::formatter.
+        std::wstring formatted = LocalizedString(resourceId).c_str();
+        size_t argumentIndex = 0;
+
+        for (auto const& argument : arguments)
+        {
+            std::wstring const token = L"{" + std::to_wstring(argumentIndex) + L"}";
+            size_t searchIndex = 0;
+
+            while ((searchIndex = formatted.find(token, searchIndex)) != std::wstring::npos)
+            {
+                formatted.replace(searchIndex, token.size(), argument.c_str());
+                searchIndex += argument.size();
+            }
+
+            ++argumentIndex;
+        }
+
+        return hstring{ formatted };
+    }
+
+    hstring StoredLanguagePreference()
+    {
+        return ::image_channel_viewer::LoadConfiguredLanguagePreference();
+    }
+
+    void StoreLanguagePreference(hstring const& languageTag)
+    {
+        ::image_channel_viewer::SaveConfiguredLanguagePreference(languageTag);
+    }
+
+    Controls::ComboBoxItem CreateLanguageOption(hstring const& label, hstring const& tag)
+    {
+        Controls::ComboBoxItem item;
+        item.Content(box_value(label));
+        item.Tag(box_value(tag));
+        return item;
+    }
 
     __forceinline float Clamp01(float value)
     {
@@ -539,9 +655,14 @@ namespace winrt::image_channel_viewer::implementation
     {
         InitializeComponent();
         AppWindow().TitleBar().PreferredTheme(Microsoft::UI::Windowing::TitleBarTheme::UseDefaultAppMode);
-        Title(L"Image Channel Viewer");
         InitializeModes();
         Populatechannels();
+        Title(LocalizedString(L"Window.Title.AppName"));
+    }
+
+    winrt::hstring MainWindow::LocalizedString(winrt::hstring const& resourceId)
+    {
+        return ::LocalizedString(std::wstring_view{ resourceId.c_str() });
     }
 
     void MainWindow::OnOpenImageClick(
@@ -549,6 +670,13 @@ namespace winrt::image_channel_viewer::implementation
         [[maybe_unused]] RoutedEventArgs const& args)
     {
         LoadImageAsync();
+    }
+
+    void MainWindow::OnSettingsClick(
+        [[maybe_unused]] IInspectable const& sender,
+        [[maybe_unused]] RoutedEventArgs const& args)
+    {
+        ShowSettingsDialogAsync();
     }
 
     void MainWindow::OnAboutClick(
@@ -687,8 +815,8 @@ namespace winrt::image_channel_viewer::implementation
     Windows::Foundation::IAsyncAction MainWindow::ShowAboutDialogAsync()
     {
         Controls::ContentDialog dialog;
-        dialog.Title(box_value(L"关于 Image Channel Viewer"));
-        dialog.PrimaryButtonText(L"关闭");
+        dialog.Title(box_value(FormatLocalizedString(L"About.DialogTitleFormat", { LocalizedString(L"Window.Title.AppName") })));
+        dialog.PrimaryButtonText(LocalizedString(L"Common.Close"));
         dialog.DefaultButton(Controls::ContentDialogButton::Primary);
         dialog.XamlRoot(Content().XamlRoot());
         dialog.Background(Microsoft::UI::Xaml::Media::SolidColorBrush(
@@ -698,7 +826,7 @@ namespace winrt::image_channel_viewer::implementation
         contentPanel.Spacing(12);
 
         Microsoft::UI::Xaml::Controls::TextBlock versionText;
-        versionText.Text(hstring{ L"版本：" } + hstring{ AppVersion });
+        versionText.Text(FormatLocalizedString(L"About.VersionFormat", { hstring{ AppVersion } }));
         versionText.TextWrapping(TextWrapping::WrapWholeWords);
         contentPanel.Children().Append(versionText);
 
@@ -708,19 +836,19 @@ namespace winrt::image_channel_viewer::implementation
         Microsoft::UI::Xaml::Documents::Paragraph authorParagraph;
 
         Microsoft::UI::Xaml::Documents::Run authorPrefix;
-        authorPrefix.Text(L"由 Umaichi/Unnamed2964 制作. 由 ");
+        authorPrefix.Text(LocalizedString(L"About.AuthorPrefix"));
         authorParagraph.Inlines().Append(authorPrefix);
 
         Microsoft::UI::Xaml::Documents::Hyperlink mitLicenseLink;
         mitLicenseLink.NavigateUri(Windows::Foundation::Uri(L"https://github.com/Unnamed2964/winui-image-channel-viewer/blob/master/LICENSE"));
 
         Microsoft::UI::Xaml::Documents::Run mitLicenseRun;
-        mitLicenseRun.Text(L"MIT 许可证");
+        mitLicenseRun.Text(LocalizedString(L"About.MitLicense"));
         mitLicenseLink.Inlines().Append(mitLicenseRun);
         authorParagraph.Inlines().Append(mitLicenseLink);
 
         Microsoft::UI::Xaml::Documents::Run authorSuffix;
-        authorSuffix.Text(L" 许可给你.");
+        authorSuffix.Text(LocalizedString(L"About.AuthorSuffix"));
         authorParagraph.Inlines().Append(authorSuffix);
 
         authorText.Blocks().Append(authorParagraph);
@@ -729,13 +857,13 @@ namespace winrt::image_channel_viewer::implementation
         Microsoft::UI::Xaml::Controls::StackPanel linksPanel;
 
         Microsoft::UI::Xaml::Controls::HyperlinkButton githubLink;
-        githubLink.Content(box_value(L"GitHub 主页"));
+        githubLink.Content(box_value(LocalizedString(L"About.GitHub")));
         githubLink.NavigateUri(Windows::Foundation::Uri(L"https://github.com/Unnamed2964"));
         githubLink.HorizontalAlignment(HorizontalAlignment::Left);
         linksPanel.Children().Append(githubLink);
 
         Microsoft::UI::Xaml::Controls::HyperlinkButton websiteLink;
-        websiteLink.Content(box_value(L"个人网站"));
+        websiteLink.Content(box_value(LocalizedString(L"About.Website")));
         websiteLink.NavigateUri(Windows::Foundation::Uri(L"https://umamichi.moe"));
         websiteLink.HorizontalAlignment(HorizontalAlignment::Left);
         linksPanel.Children().Append(websiteLink);
@@ -747,15 +875,98 @@ namespace winrt::image_channel_viewer::implementation
         co_await dialog.ShowAsync();
     }
 
+    Windows::Foundation::IAsyncAction MainWindow::ShowSettingsDialogAsync()
+    {
+        Controls::ContentDialog dialog;
+        dialog.Title(box_value(LocalizedString(L"Settings.DialogTitle")));
+        dialog.PrimaryButtonText(LocalizedString(L"Common.Save"));
+        dialog.CloseButtonText(LocalizedString(L"Common.Cancel"));
+        dialog.DefaultButton(Controls::ContentDialogButton::Primary);
+        dialog.XamlRoot(Content().XamlRoot());
+
+        Controls::StackPanel contentPanel;
+        contentPanel.Spacing(12);
+
+        Controls::TextBlock descriptionText;
+        descriptionText.Text(LocalizedString(L"Settings.DialogDescription"));
+        descriptionText.TextWrapping(TextWrapping::WrapWholeWords);
+        contentPanel.Children().Append(descriptionText);
+
+        Controls::TextBlock languageLabel;
+        languageLabel.Text(LocalizedString(L"Settings.Language.Label"));
+        contentPanel.Children().Append(languageLabel);
+
+        Controls::ComboBox languageComboBox;
+        languageComboBox.MinWidth(240.0);
+        languageComboBox.Items().Append(CreateLanguageOption(LocalizedString(L"Settings.Language.System"), hstring{}));
+        languageComboBox.Items().Append(CreateLanguageOption(LocalizedString(L"Settings.Language.ZhCN"), hstring{ L"zh-CN" }));
+        languageComboBox.Items().Append(CreateLanguageOption(LocalizedString(L"Settings.Language.EnUS"), hstring{ L"en-US" }));
+
+        auto const storedLanguage = StoredLanguagePreference();
+        uint32_t selectedIndex = 0;
+        if (storedLanguage == L"zh-CN")
+        {
+            selectedIndex = 1;
+        }
+        else if (storedLanguage == L"en-US")
+        {
+            selectedIndex = 2;
+        }
+        languageComboBox.SelectedIndex(selectedIndex);
+        contentPanel.Children().Append(languageComboBox);
+
+        Controls::TextBlock restartHint;
+        restartHint.Text(LocalizedString(L"Settings.Language.RestartHint"));
+        restartHint.TextWrapping(TextWrapping::WrapWholeWords);
+        restartHint.Opacity(0.74);
+        contentPanel.Children().Append(restartHint);
+
+        dialog.Content(contentPanel);
+
+        auto const result = co_await dialog.ShowAsync();
+        if (result != Controls::ContentDialogResult::Primary)
+        {
+            co_return;
+        }
+
+        auto const selectedItem = languageComboBox.SelectedItem().try_as<Controls::ComboBoxItem>();
+        if (!selectedItem)
+        {
+            co_return;
+        }
+
+        auto const newLanguage = unbox_value_or<hstring>(selectedItem.Tag(), hstring{});
+        auto const previousLanguage = StoredLanguagePreference();
+        StoreLanguagePreference(newLanguage);
+
+        if (newLanguage == previousLanguage)
+        {
+            co_return;
+        }
+
+        Controls::ContentDialog restartDialog;
+        restartDialog.Title(box_value(LocalizedString(L"Settings.RestartDialog.Title")));
+        restartDialog.CloseButtonText(LocalizedString(L"Common.Close"));
+        restartDialog.DefaultButton(Controls::ContentDialogButton::Close);
+        restartDialog.XamlRoot(Content().XamlRoot());
+
+        Controls::TextBlock restartMessage;
+        restartMessage.Text(LocalizedString(L"Settings.RestartDialog.Message"));
+        restartMessage.TextWrapping(TextWrapping::WrapWholeWords);
+        restartDialog.Content(restartMessage);
+
+        co_await restartDialog.ShowAsync();
+    }
+
     void MainWindow::InitializeModes()
     {
         m_modes = {
-            { ColorMode::Original, L"原图", { L"原图" }, true },
-            { ColorMode::RGB, L"RGB", { L"R", L"G", L"B" }, true },
-            { ColorMode::HSL, L"HSL", { L"H", L"S", L"L" }, false },
-            { ColorMode::HSV, L"HSV", { L"H", L"S", L"V" }, false },
-            { ColorMode::CMYK, L"CMYK", { L"C", L"M", L"Y", L"K" }, true },
-            { ColorMode::LAB, L"LAB", { L"L", L"a", L"b" }, false },
+            { ColorMode::Original, LocalizedString(L"Mode.Original.Label"), { LocalizedString(L"Channel.Original.Label") }, true },
+            { ColorMode::RGB, LocalizedString(L"Mode.RGB.Label"), { LocalizedString(L"Channel.RGB.R"), LocalizedString(L"Channel.RGB.G"), LocalizedString(L"Channel.RGB.B") }, true },
+            { ColorMode::HSL, LocalizedString(L"Mode.HSL.Label"), { LocalizedString(L"Channel.HSL.H"), LocalizedString(L"Channel.HSL.S"), LocalizedString(L"Channel.HSL.L") }, false },
+            { ColorMode::HSV, LocalizedString(L"Mode.HSV.Label"), { LocalizedString(L"Channel.HSV.H"), LocalizedString(L"Channel.HSV.S"), LocalizedString(L"Channel.HSV.V") }, false },
+            { ColorMode::CMYK, LocalizedString(L"Mode.CMYK.Label"), { LocalizedString(L"Channel.CMYK.C"), LocalizedString(L"Channel.CMYK.M"), LocalizedString(L"Channel.CMYK.Y"), LocalizedString(L"Channel.CMYK.K") }, true },
+            { ColorMode::LAB, LocalizedString(L"Mode.LAB.Label"), { LocalizedString(L"Channel.LAB.L"), LocalizedString(L"Channel.LAB.A"), LocalizedString(L"Channel.LAB.B") }, false },
         };
 
         auto items = ColorModeFlyout().Items();
@@ -812,7 +1023,7 @@ namespace winrt::image_channel_viewer::implementation
         }
 
         GrayscaleAppBarButton().IsEnabled(supportsGrayscaleToggle);
-        GrayscaleAppBarButton().Label(m_showGrayscale ? L"黑白显示" : L"彩色显示");
+        GrayscaleAppBarButton().Label(m_showGrayscale ? LocalizedString(L"DisplayMode.Grayscale") : LocalizedString(L"DisplayMode.Color"));
         ColorDisplayMenuItem().IsChecked(!m_showGrayscale);
         GrayscaleDisplayMenuItem().IsChecked(m_showGrayscale);
     }
@@ -1038,14 +1249,14 @@ namespace winrt::image_channel_viewer::implementation
             RestorePreviewView();
 
             const hstring statusText = definition.mode == ColorMode::Original
-                ? hstring{ L"原图" }
-                : hstring{ definition.label } + hstring{ L" · " } + channelLabel;
+                ? definition.label
+                : FormatLocalizedString(L"Window.Status.ModeChannelFormat", { definition.label, channelLabel });
 
             hstring windowTitle = loadedFileName.empty()
-                ? hstring{ L"Image Channel Viewer" }
+                ? LocalizedString(L"Window.Title.AppName")
                 : loadedFileName;
 
-            Title(windowTitle + hstring{ L" - " } + statusText);
+            Title(FormatLocalizedString(L"Window.Title.WithStatus", { windowTitle, statusText }));
         }
         catch (...)
         {
