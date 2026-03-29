@@ -35,7 +35,7 @@ namespace
 
     hstring EffectiveLanguageOverrideTag()
     {
-        auto const storedLanguage = ::image_channel_viewer::LoadConfiguredLanguagePreference();
+        auto const storedLanguage = ::image_channel_viewer::config::LoadConfiguredLanguagePreference();
         if (!storedLanguage.empty())
         {
             return IsSupportedLanguageTag(storedLanguage.c_str()) ? storedLanguage : hstring{};
@@ -109,11 +109,11 @@ namespace image_channel_viewer::localization
 
     winrt::hstring StoredLanguagePreference()
     {
-        return ::image_channel_viewer::LoadConfiguredLanguagePreference();
+        return ::image_channel_viewer::config::LoadConfiguredLanguagePreference();
     }
 
     void StoreLanguagePreference(winrt::hstring const& languageTag)
     {
-        ::image_channel_viewer::SaveConfiguredLanguagePreference(languageTag);
+        ::image_channel_viewer::config::SaveConfiguredLanguagePreference(languageTag);
     }
 }

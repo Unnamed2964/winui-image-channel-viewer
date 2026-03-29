@@ -6,7 +6,7 @@
 #include <new>
 #include <type_traits>
 
-namespace image_channel_viewer
+namespace image_channel_viewer::memory
 {
     template<typename T, std::size_t Alignment>
     class aligned_allocator

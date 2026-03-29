@@ -236,7 +236,7 @@ namespace
     }
 }
 
-namespace image_channel_viewer
+namespace image_channel_viewer::config
 {
     winrt::hstring LoadConfiguredLanguagePreference()
     {

@@ -52,7 +52,7 @@ namespace winrt::image_channel_viewer::implementation
 
         std::vector<ModeDefinition> m_modes;
         winrt::Windows::Graphics::Imaging::SoftwareBitmap m_sourceBitmap{ nullptr };
-        std::optional<::image_channel_viewer::ContinuousPixelBuffer> m_sourcePixels;
+        std::optional<::image_channel_viewer::imaging::ContinuousPixelBuffer> m_sourcePixels;
         winrt::Windows::Storage::StorageFile m_loadedFile{ nullptr };
         winrt::hstring m_loadedFileName;
         uint32_t m_pixelWidth{ 0 };

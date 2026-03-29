@@ -10,11 +10,11 @@
 
 #include "AlignedAllocator.h"
 
-namespace image_channel_viewer
+namespace image_channel_viewer::imaging
 {
     // align vector::data() to 64 Byte for SIMD friendly
     template<typename T>
-    using aligned_vector = std::vector<T, aligned_allocator<T, 64>>;
+    using aligned_vector = std::vector<T, ::image_channel_viewer::memory::aligned_allocator<T, 64>>;
 
     class ContinuousPixelBuffer
     {
