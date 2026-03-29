@@ -1,20 +1,11 @@
 #pragma once
 
 #include "ContinuousPixelBuffer.h"
+#include "ImageProcessing.h"
 #include "MainWindow.g.h"
 
 namespace winrt::image_channel_viewer::implementation
 {
-    enum class ColorMode
-    {
-        Original,
-        RGB,
-        HSL,
-        HSV,
-        CMYK,
-        LAB,
-    };
-
     struct MainWindow : MainWindowT<MainWindow>
     {
         MainWindow();
@@ -31,6 +22,8 @@ namespace winrt::image_channel_viewer::implementation
         void OnPreviewViewChanged(IInspectable const& sender, Microsoft::UI::Xaml::Controls::ScrollViewerViewChangedEventArgs const& args);
 
     private:
+        using ColorMode = ::image_channel_viewer::image_processing::ColorMode;
+
         struct ModeDefinition
         {
             ColorMode mode;

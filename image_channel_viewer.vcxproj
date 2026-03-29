@@ -126,7 +126,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
+    <ClInclude Include="ConfigStore.h" />
     <ClInclude Include="ContinuousPixelBuffer.h" />
+    <ClInclude Include="ImageProcessing.h" />
+    <ClInclude Include="LocalizationService.h" />
     <ClInclude Include="App.xaml.h">
       <DependentUpon>App.xaml</DependentUpon>
     </ClInclude>
@@ -149,6 +152,9 @@
     <ClCompile Include="App.xaml.cpp">
       <DependentUpon>App.xaml</DependentUpon>
     </ClCompile>
+    <ClCompile Include="ConfigStore.cpp" />
+    <ClCompile Include="ImageProcessing.cpp" />
+    <ClCompile Include="LocalizationService.cpp" />
     <ClCompile Include="MainWindow.xaml.cpp">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </ClCompile>
