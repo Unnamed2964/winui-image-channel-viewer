@@ -6,7 +6,10 @@
 #include <winrt/Microsoft.Windows.ApplicationModel.Resources.h>
 #include <shlwapi.h>
 
+
 #include <filesystem>
+#include <algorithm>
+#include <ranges>
 
 #pragma comment(lib, "shlwapi.lib")
 
@@ -171,12 +174,9 @@ namespace
         auto const normalized = ToLowerCopy(extension);
         for (size_t index = 0; index < std::size(kSaveFormats); ++index)
         {
-            for (auto ext : kSaveFormats[index].extensions)
+            if (std::ranges::contains(kSaveFormats[index].extensions, normalized))
             {
-                if (normalized == ext)
-                {
-                    return index;
-                }
+                return index;
             }
         }
         return std::nullopt;
