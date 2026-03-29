@@ -8,7 +8,6 @@
 
 #include <filesystem>
 
-#pragma comment(lib, "shell32.lib")
 #pragma comment(lib, "shlwapi.lib")
 
 #if __has_include("MainWindow.g.cpp")
@@ -147,20 +146,18 @@ namespace
         return item;
     }
     
-    struct SaveFormatDefinition
-    {
+    struct SaveFormatDefinition {
         wchar_t const* labelResourceId;
-        wchar_t const* pattern;
-        wchar_t const* extension;
         winrt::guid (*encoderIdFactory)();
+        std::vector<wchar_t const*> extensions; // extensions[0] is the primary
     };
 
     const SaveFormatDefinition kSaveFormats[] = {
-        { L"SaveDialog.FileType.Png", L"*.png", L"png", &BitmapEncoder::PngEncoderId },
-        { L"SaveDialog.FileType.Jpeg", L"*.jpg;*.jpeg", L"jpg", &BitmapEncoder::JpegEncoderId },
-        { L"SaveDialog.FileType.Bmp", L"*.bmp", L"bmp", &BitmapEncoder::BmpEncoderId },
-        { L"SaveDialog.FileType.Tiff", L"*.tif;*.tiff", L"tif", &BitmapEncoder::TiffEncoderId },
-        { L"SaveDialog.FileType.Gif", L"*.gif", L"gif", &BitmapEncoder::GifEncoderId },
+        { L"SaveDialog.FileType.Png", &BitmapEncoder::PngEncoderId, { L".png" } },
+        { L"SaveDialog.FileType.Jpeg", &BitmapEncoder::JpegEncoderId, { L".jpg", L".jpeg" } },
+        { L"SaveDialog.FileType.Bmp", &BitmapEncoder::BmpEncoderId, { L".bmp" } },
+        { L"SaveDialog.FileType.Tiff", &BitmapEncoder::TiffEncoderId, { L".tif", L".tiff" } },
+        { L"SaveDialog.FileType.Gif", &BitmapEncoder::GifEncoderId, { L".gif" } },
     };
 
     std::wstring ToLowerCopy(std::wstring value)
@@ -174,12 +171,14 @@ namespace
         auto const normalized = ToLowerCopy(extension);
         for (size_t index = 0; index < std::size(kSaveFormats); ++index)
         {
-            if (!!::PathMatchSpecW(normalized.c_str(), kSaveFormats[index].pattern))
+            for (auto ext : kSaveFormats[index].extensions)
             {
-                return index;
+                if (normalized == ext)
+                {
+                    return index;
+                }
             }
         }
-
         return std::nullopt;
     }
 
@@ -187,6 +186,15 @@ namespace
     {
         auto const saveFormatIndex = SaveFormatIndexForExtension(extension);
         return kSaveFormats[saveFormatIndex.value_or(0)].encoderIdFactory();
+    }
+
+    winrt::Windows::Foundation::Collections::IVector<hstring> SavePickerExtensions(const std::vector<wchar_t const*>& exts)
+    {
+        std::vector<hstring> result;
+        for (auto ext : exts) {
+            result.emplace_back(ext);
+        }
+        return winrt::single_threaded_vector(std::move(result));
     }
 
     std::wstring SanitizeFileComponent(std::wstring value)
@@ -211,68 +219,30 @@ namespace
         return value;
     }
 
-    void TrySetSaveDialogFolder(IFileSaveDialog* saveDialog, std::wstring const& folderPath)
-    {
-        if (folderPath.empty())
-        {
-            return;
-        }
-
-        winrt::com_ptr<IShellItem> folderItem;
-        if (FAILED(::SHCreateItemFromParsingName(folderPath.c_str(), nullptr, IID_PPV_ARGS(folderItem.put()))))
-        {
-            return;
-        }
-
-        saveDialog->SetDefaultFolder(folderItem.get());
-        saveDialog->SetFolder(folderItem.get());
-    }
-
-    std::optional<std::wstring> PickSavePath(
+    winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Storage::StorageFile> PickSaveFileAsync(
         HWND windowHandle,
-        std::wstring const& initialDirectory,
         std::wstring const& suggestedFileName,
         uint32_t defaultTypeIndex)
     {
-        winrt::com_ptr<IFileSaveDialog> saveDialog;
-        check_hresult(::CoCreateInstance(CLSID_FileSaveDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(saveDialog.put())));
+        winrt::Windows::Storage::Pickers::FileSavePicker picker;
+        picker.SuggestedStartLocation(winrt::Windows::Storage::Pickers::PickerLocationId::PicturesLibrary);
 
-        DWORD options = 0;
-        check_hresult(saveDialog->GetOptions(&options));
-        check_hresult(saveDialog->SetOptions(options | FOS_FORCEFILESYSTEM | FOS_OVERWRITEPROMPT | FOS_PATHMUSTEXIST));
-
-        std::wstring localizedLabels[std::size(kSaveFormats)];
-        COMDLG_FILTERSPEC fileTypes[std::size(kSaveFormats)] = {};
         for (size_t index = 0; index < std::size(kSaveFormats); ++index)
         {
-            localizedLabels[index] = LocalizedString(kSaveFormats[index].labelResourceId).c_str();
-            fileTypes[index] = COMDLG_FILTERSPEC{ localizedLabels[index].c_str(), kSaveFormats[index].pattern };
+            picker.FileTypeChoices().Insert(
+                LocalizedString(kSaveFormats[index].labelResourceId),
+                SavePickerExtensions(kSaveFormats[index].extensions));
         }
 
-        check_hresult(saveDialog->SetFileTypes(static_cast<uint32_t>(std::size(fileTypes)), fileTypes));
-        check_hresult(saveDialog->SetFileTypeIndex(defaultTypeIndex));
-        check_hresult(saveDialog->SetDefaultExtension(kSaveFormats[defaultTypeIndex - 1].extension));
-        check_hresult(saveDialog->SetTitle(LocalizedString(L"SaveDialog.Title").c_str()));
-        check_hresult(saveDialog->SetFileName(suggestedFileName.c_str()));
-        TrySetSaveDialogFolder(saveDialog.get(), initialDirectory);
+        picker.SettingsIdentifier(L"SaveCurrentView");
+        picker.SuggestedFileName(suggestedFileName);
+        // defaultTypeIndex is 1-based
+        picker.DefaultFileExtension(hstring{ kSaveFormats[defaultTypeIndex - 1].extensions[0] });
 
-        const HRESULT showResult = saveDialog->Show(windowHandle);
-        if (showResult == HRESULT_FROM_WIN32(ERROR_CANCELLED))
-        {
-            return std::nullopt;
-        }
+        auto initializeWithWindow = picker.as<IInitializeWithWindow>();
+        check_hresult(initializeWithWindow->Initialize(windowHandle));
 
-        check_hresult(showResult);
-
-        winrt::com_ptr<IShellItem> resultItem;
-        check_hresult(saveDialog->GetResult(resultItem.put()));
-
-        PWSTR rawPath = nullptr;
-        check_hresult(resultItem->GetDisplayName(SIGDN_FILESYSPATH, &rawPath));
-
-        std::wstring selectedPath = rawPath;
-        ::CoTaskMemFree(rawPath);
-        return selectedPath;
+        co_return co_await picker.PickSaveFileAsync();
     }
 
     winrt::Windows::Graphics::Imaging::SoftwareBitmap CreateSoftwareBitmapFromPixels(
@@ -1154,12 +1124,10 @@ namespace winrt::image_channel_viewer::implementation
         const uint32_t pixelHeight = m_pixelHeight;
         auto sourcePixels = *m_sourcePixels;
 
-        std::wstring initialDirectory;
         std::wstring sourceExtension;
         if (m_loadedFile)
         {
             const std::filesystem::path sourcePath{ m_loadedFile.Path().c_str() };
-            initialDirectory = sourcePath.parent_path().wstring();
             sourceExtension = sourcePath.extension().wstring();
         }
         else if (!m_loadedFileName.empty())
@@ -1174,13 +1142,12 @@ namespace winrt::image_channel_viewer::implementation
             saveFormatIndex = 0;
         }
 
-        auto const selectedPath = PickSavePath(
+        auto const outputFile = co_await PickSaveFileAsync(
             WindowHandle(),
-            initialDirectory,
             BuildSuggestedSaveFileName().c_str(),
             static_cast<uint32_t>(saveFormatIndex.value() + 1));
 
-        if (!selectedPath.has_value())
+        if (!outputFile)
         {
             co_return;
         }
@@ -1200,7 +1167,7 @@ namespace winrt::image_channel_viewer::implementation
 
         try
         {
-            const std::filesystem::path outputPath{ *selectedPath };
+            const std::filesystem::path outputPath{ outputFile.Path().c_str() };
             const winrt::guid encoderId = EncoderIdForExtension(outputPath.extension().wstring());
 
             co_await winrt::resume_background();
@@ -1243,10 +1210,6 @@ namespace winrt::image_channel_viewer::implementation
                     }
                 });
 
-            auto outputFolder = co_await Windows::Storage::StorageFolder::GetFolderFromPathAsync(outputPath.parent_path().wstring());
-            auto outputFile = co_await outputFolder.CreateFileAsync(
-                outputPath.filename().wstring(),
-                Windows::Storage::CreationCollisionOption::ReplaceExisting);
             auto stream = co_await outputFile.OpenAsync(Windows::Storage::FileAccessMode::ReadWrite);
             auto encoder = co_await Windows::Graphics::Imaging::BitmapEncoder::CreateAsync(encoderId, stream);
             encoder.SetSoftwareBitmap(softwareBitmap);
