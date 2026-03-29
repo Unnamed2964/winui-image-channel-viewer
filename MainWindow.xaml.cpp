@@ -4,6 +4,14 @@
 #include "ConfigStore.h"
 #include "AppVersion.g.h"
 #include <winrt/Microsoft.Windows.ApplicationModel.Resources.h>
+#include <shlwapi.h>
+
+
+#include <filesystem>
+#include <algorithm>
+#include <ranges>
+
+#pragma comment(lib, "shlwapi.lib")
 
 #if __has_include("MainWindow.g.cpp")
 #include "MainWindow.g.cpp"
@@ -14,6 +22,7 @@ using namespace winrt::Microsoft::UI::Xaml;
 
 namespace
 {
+    using BitmapEncoder = winrt::Windows::Graphics::Imaging::BitmapEncoder;
     using ResourceLoader = winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceLoader;
     using ResourceManager = winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceManager;
     using ResourceMap = winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceMap;
@@ -138,6 +147,126 @@ namespace
         item.Content(box_value(label));
         item.Tag(box_value(tag));
         return item;
+    }
+    
+    struct SaveFormatDefinition {
+        wchar_t const* labelResourceId;
+        winrt::guid (*encoderIdFactory)();
+        std::vector<wchar_t const*> extensions; // extensions[0] is the primary
+    };
+
+    const SaveFormatDefinition kSaveFormats[] = {
+        { L"SaveDialog.FileType.Png", &BitmapEncoder::PngEncoderId, { L".png" } },
+        { L"SaveDialog.FileType.Jpeg", &BitmapEncoder::JpegEncoderId, { L".jpg", L".jpeg" } },
+        { L"SaveDialog.FileType.Bmp", &BitmapEncoder::BmpEncoderId, { L".bmp" } },
+        { L"SaveDialog.FileType.Tiff", &BitmapEncoder::TiffEncoderId, { L".tif", L".tiff" } },
+        { L"SaveDialog.FileType.Gif", &BitmapEncoder::GifEncoderId, { L".gif" } },
+    };
+
+    std::wstring ToLowerCopy(std::wstring value)
+    {
+        std::transform(value.begin(), value.end(), value.begin(), ::towlower);
+        return value;
+    }
+
+    std::optional<size_t> SaveFormatIndexForExtension(std::wstring const& extension)
+    {
+        auto const normalized = ToLowerCopy(extension);
+        for (size_t index = 0; index < std::size(kSaveFormats); ++index)
+        {
+            if (std::ranges::contains(kSaveFormats[index].extensions, normalized))
+            {
+                return index;
+            }
+        }
+        return std::nullopt;
+    }
+
+    winrt::guid EncoderIdForExtension(std::wstring const& extension)
+    {
+        auto const saveFormatIndex = SaveFormatIndexForExtension(extension);
+        return kSaveFormats[saveFormatIndex.value_or(0)].encoderIdFactory();
+    }
+
+    winrt::Windows::Foundation::Collections::IVector<hstring> SavePickerExtensions(const std::vector<wchar_t const*>& exts)
+    {
+        std::vector<hstring> result;
+        for (auto ext : exts) {
+            result.emplace_back(ext);
+        }
+        return winrt::single_threaded_vector(std::move(result));
+    }
+
+    std::wstring SanitizeFileComponent(std::wstring value)
+    {
+        static constexpr std::array invalidCharacters{ L'\\', L'/', L':', L'*', L'?', L'"', L'<', L'>', L'|' };
+
+        std::replace_if(value.begin(), value.end(), [](wchar_t character)
+            {
+                return std::ranges::find(invalidCharacters, character) != invalidCharacters.end();
+            }, L'_');
+
+        while (!value.empty() && (value.back() == L' ' || value.back() == L'.'))
+        {
+            value.pop_back();
+        }
+
+        if (value.empty())
+        {
+            value = L"image";
+        }
+
+        return value;
+    }
+
+    winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Storage::StorageFile> PickSaveFileAsync(
+        HWND windowHandle,
+        std::wstring const& suggestedFileName,
+        uint32_t defaultTypeIndex)
+    {
+        winrt::Windows::Storage::Pickers::FileSavePicker picker;
+        picker.SuggestedStartLocation(winrt::Windows::Storage::Pickers::PickerLocationId::PicturesLibrary);
+
+        for (size_t index = 0; index < std::size(kSaveFormats); ++index)
+        {
+            picker.FileTypeChoices().Insert(
+                LocalizedString(kSaveFormats[index].labelResourceId),
+                SavePickerExtensions(kSaveFormats[index].extensions));
+        }
+
+        picker.SettingsIdentifier(L"SaveCurrentView");
+        picker.SuggestedFileName(suggestedFileName);
+        // defaultTypeIndex is 1-based
+        picker.DefaultFileExtension(hstring{ kSaveFormats[defaultTypeIndex - 1].extensions[0] });
+
+        auto initializeWithWindow = picker.as<IInitializeWithWindow>();
+        check_hresult(initializeWithWindow->Initialize(windowHandle));
+
+        co_return co_await picker.PickSaveFileAsync();
+    }
+
+    winrt::Windows::Graphics::Imaging::SoftwareBitmap CreateSoftwareBitmapFromPixels(
+        ::image_channel_viewer::ContinuousPixelBuffer& pixels,
+        uint32_t pixelWidth,
+        uint32_t pixelHeight)
+    {
+        winrt::Windows::Graphics::Imaging::SoftwareBitmap softwareBitmap(
+            winrt::Windows::Graphics::Imaging::BitmapPixelFormat::Bgra8,
+            static_cast<int32_t>(pixelWidth),
+            static_cast<int32_t>(pixelHeight),
+            winrt::Windows::Graphics::Imaging::BitmapAlphaMode::Premultiplied);
+
+        auto buffer = softwareBitmap.LockBuffer(winrt::Windows::Graphics::Imaging::BitmapBufferAccessMode::Write);
+        auto reference = buffer.CreateReference();
+        auto byteAccess = reference.as<IMemoryBufferByteAccess>();
+
+        uint8_t* destination = nullptr;
+        uint32_t capacity = 0;
+        check_hresult(byteAccess->GetBuffer(&destination, &capacity));
+
+        const auto plane = buffer.GetPlaneDescription(0);
+        std::copy(pixels.winrt_begin(), pixels.winrt_end(), destination + plane.StartIndex);
+        return softwareBitmap;
     }
 
     __forceinline float Clamp01(float value)
@@ -647,6 +776,162 @@ namespace
             previewAlpha[pixelIndex] = mappedAlpha;
         }
     }
+
+    template<typename ProgressCallback>
+    ::image_channel_viewer::ContinuousPixelBuffer RenderPixels(
+        ::image_channel_viewer::ContinuousPixelBuffer const& sourcePixels,
+        uint32_t pixelWidth,
+        uint32_t pixelHeight,
+        ColorMode selectedMode,
+        uint32_t channelIndex,
+        bool showGrayscale,
+        ProgressCallback&& reportProgress)
+    {
+        ::image_channel_viewer::ContinuousPixelBuffer previewPixels(pixelWidth * 4, pixelWidth, pixelHeight);
+        auto const* sourceRed = sourcePixels.red_data();
+        auto const* sourceGreen = sourcePixels.green_data();
+        auto const* sourceBlue = sourcePixels.blue_data();
+        auto const* sourceAlpha = sourcePixels.alpha_data();
+        auto* previewRed = previewPixels.red_data();
+        auto* previewGreen = previewPixels.green_data();
+        auto* previewBlue = previewPixels.blue_data();
+        auto* previewAlpha = previewPixels.alpha_data();
+        const size_t pixelCount = sourcePixels.pixel_count();
+
+        constexpr size_t progressChunkSize = 65536;
+        uint32_t lastReportedProgress = 0;
+        auto renderChunk = [&](auto renderer)
+            {
+                for (size_t beginPixelIndex = 0; beginPixelIndex < pixelCount; beginPixelIndex += progressChunkSize)
+                {
+                    const size_t endPixelIndex = std::min(beginPixelIndex + progressChunkSize, pixelCount);
+                    renderer(beginPixelIndex, endPixelIndex);
+
+                    const uint32_t progress = static_cast<uint32_t>((endPixelIndex * 100) / pixelCount);
+                    if (progress != lastReportedProgress)
+                    {
+                        lastReportedProgress = progress;
+                        reportProgress(progress);
+                    }
+                }
+            };
+
+#define RENDER_TEMPLATE_INSTANCE(modeValue, channelValue, grayscaleValue) \
+        renderChunk([&](size_t beginPixelIndex, size_t endPixelIndex) \
+            { \
+                RenderPreviewWork<modeValue, channelValue, grayscaleValue>( \
+                    sourceRed, \
+                    sourceGreen, \
+                    sourceBlue, \
+                    sourceAlpha, \
+                    previewRed, \
+                    previewGreen, \
+                    previewBlue, \
+                    previewAlpha, \
+                    beginPixelIndex, \
+                    endPixelIndex); \
+            })
+
+#define RENDER_GRAYSCALE_VARIANT(modeValue, channelValue) \
+        if (showGrayscale) \
+        { \
+            RENDER_TEMPLATE_INSTANCE(modeValue, channelValue, true); \
+        } \
+        else \
+        { \
+            RENDER_TEMPLATE_INSTANCE(modeValue, channelValue, false); \
+        }
+
+        switch (selectedMode)
+        {
+        case ColorMode::Original:
+            RENDER_GRAYSCALE_VARIANT(ColorMode::Original, 0);
+            break;
+
+        case ColorMode::RGB:
+            switch (channelIndex)
+            {
+            case 0:
+                RENDER_GRAYSCALE_VARIANT(ColorMode::RGB, 0);
+                break;
+            case 1:
+                RENDER_GRAYSCALE_VARIANT(ColorMode::RGB, 1);
+                break;
+            default:
+                RENDER_GRAYSCALE_VARIANT(ColorMode::RGB, 2);
+                break;
+            }
+            break;
+
+        case ColorMode::HSL:
+            switch (channelIndex)
+            {
+            case 0:
+                RENDER_GRAYSCALE_VARIANT(ColorMode::HSL, 0);
+                break;
+            case 1:
+                RENDER_GRAYSCALE_VARIANT(ColorMode::HSL, 1);
+                break;
+            default:
+                RENDER_GRAYSCALE_VARIANT(ColorMode::HSL, 2);
+                break;
+            }
+            break;
+
+        case ColorMode::HSV:
+            switch (channelIndex)
+            {
+            case 0:
+                RENDER_GRAYSCALE_VARIANT(ColorMode::HSV, 0);
+                break;
+            case 1:
+                RENDER_GRAYSCALE_VARIANT(ColorMode::HSV, 1);
+                break;
+            default:
+                RENDER_GRAYSCALE_VARIANT(ColorMode::HSV, 2);
+                break;
+            }
+            break;
+
+        case ColorMode::CMYK:
+            switch (channelIndex)
+            {
+            case 0:
+                RENDER_GRAYSCALE_VARIANT(ColorMode::CMYK, 0);
+                break;
+            case 1:
+                RENDER_GRAYSCALE_VARIANT(ColorMode::CMYK, 1);
+                break;
+            case 2:
+                RENDER_GRAYSCALE_VARIANT(ColorMode::CMYK, 2);
+                break;
+            default:
+                RENDER_GRAYSCALE_VARIANT(ColorMode::CMYK, 3);
+                break;
+            }
+            break;
+
+        case ColorMode::LAB:
+            switch (channelIndex)
+            {
+            case 0:
+                RENDER_GRAYSCALE_VARIANT(ColorMode::LAB, 0);
+                break;
+            case 1:
+                RENDER_GRAYSCALE_VARIANT(ColorMode::LAB, 1);
+                break;
+            default:
+                RENDER_GRAYSCALE_VARIANT(ColorMode::LAB, 2);
+                break;
+            }
+            break;
+        }
+
+#undef RENDER_GRAYSCALE_VARIANT
+#undef RENDER_TEMPLATE_INSTANCE
+
+        return previewPixels;
+    }
 }
 
 namespace winrt::image_channel_viewer::implementation
@@ -677,6 +962,16 @@ namespace winrt::image_channel_viewer::implementation
         [[maybe_unused]] RoutedEventArgs const& args)
     {
         ShowSettingsDialogAsync();
+    }
+
+    void MainWindow::OnSaveAsClick(
+        [[maybe_unused]] IInspectable const& sender,
+        [[maybe_unused]] RoutedEventArgs const& args)
+    {
+        if (!m_isSaving)
+        {
+            SaveCurrentViewAsync();
+        }
     }
 
     void MainWindow::OnAboutClick(
@@ -761,14 +1056,10 @@ namespace winrt::image_channel_viewer::implementation
         Windows::Storage::Pickers::FileOpenPicker picker;
         picker.ViewMode(Windows::Storage::Pickers::PickerViewMode::Thumbnail);
         picker.SuggestedStartLocation(Windows::Storage::Pickers::PickerLocationId::PicturesLibrary);
-        picker.FileTypeFilter().Append(L".png");
-        picker.FileTypeFilter().Append(L".jpg");
-        picker.FileTypeFilter().Append(L".jpeg");
-        picker.FileTypeFilter().Append(L".bmp");
-        picker.FileTypeFilter().Append(L".gif");
-        picker.FileTypeFilter().Append(L".tif");
-        picker.FileTypeFilter().Append(L".tiff");
-        picker.FileTypeFilter().Append(L".webp");
+        for(auto extension : { L".png", L".jpg", L".jpeg", L".bmp", L".gif", L".tif", L".tiff", L".webp" })
+        {
+            picker.FileTypeFilter().Append(extension);
+        }
 
         auto initializeWithWindow = picker.as<IInitializeWithWindow>();
         check_hresult(initializeWithWindow->Initialize(WindowHandle()));
@@ -790,6 +1081,7 @@ namespace winrt::image_channel_viewer::implementation
 
         m_pixelWidth = static_cast<uint32_t>(m_sourceBitmap.PixelWidth());
         m_pixelHeight = static_cast<uint32_t>(m_sourceBitmap.PixelHeight());
+        m_loadedFile = file;
         m_loadedFileName = file.Name();
 
         auto buffer = m_sourceBitmap.LockBuffer(Windows::Graphics::Imaging::BitmapBufferAccessMode::Read);
@@ -808,8 +1100,171 @@ namespace winrt::image_channel_viewer::implementation
         m_fitPreviewOnNextRefresh = true;
         m_savedHorizontalOffset = 0.0f;
         m_savedVerticalOffset = 0.0f;
+        SaveResultInfoBar().IsOpen(false);
         EmptyStatePanel().Visibility(Visibility::Collapsed);
+        UpdateCommandStates();
         RefreshPreview();
+    }
+
+    Windows::Foundation::IAsyncAction MainWindow::SaveCurrentViewAsync()
+    {
+        auto lifetime = get_strong();
+        auto uiThread = winrt::apartment_context();
+        auto dispatcherQueue = DispatcherQueue();
+
+        if (m_isSaving || !m_sourcePixels.has_value() || m_sourcePixels->empty() || m_pixelWidth == 0 || m_pixelHeight == 0)
+        {
+            co_return;
+        }
+
+        const auto selectedMode = SelectedMode().value_or(ColorMode::Original);
+        const auto channelIndex = SelectedchannelIndex().value_or(0);
+        const bool showGrayscale = m_showGrayscale;
+        const uint32_t pixelWidth = m_pixelWidth;
+        const uint32_t pixelHeight = m_pixelHeight;
+        auto sourcePixels = *m_sourcePixels;
+
+        std::wstring sourceExtension;
+        if (m_loadedFile)
+        {
+            const std::filesystem::path sourcePath{ m_loadedFile.Path().c_str() };
+            sourceExtension = sourcePath.extension().wstring();
+        }
+        else if (!m_loadedFileName.empty())
+        {
+            sourceExtension = std::filesystem::path{ m_loadedFileName.c_str() }.extension().wstring();
+        }
+
+        auto saveFormatIndex = SaveFormatIndexForExtension(sourceExtension);
+        if (!saveFormatIndex.has_value())
+        {
+            sourceExtension = L".png";
+            saveFormatIndex = 0;
+        }
+
+        auto const outputFile = co_await PickSaveFileAsync(
+            WindowHandle(),
+            BuildSuggestedSaveFileName().c_str(),
+            static_cast<uint32_t>(saveFormatIndex.value() + 1));
+
+        if (!outputFile)
+        {
+            co_return;
+        }
+
+        const uint64_t requestId = ++m_saveRequestId;
+        m_isSaving = true;
+        UpdateCommandStates();
+        SaveResultInfoBar().IsOpen(false);
+        PreviewProgressBar().IsIndeterminate(false);
+        PreviewProgressBar().Value(0.0);
+        PreviewProgressHost().Visibility(Visibility::Visible);
+
+        Controls::InfoBarSeverity resultSeverity = Controls::InfoBarSeverity::Success;
+        hstring resultTitle = LocalizedString(L"SaveResult.SuccessTitle");
+        hstring resultMessage;
+        bool saveSucceeded = false;
+
+        try
+        {
+            const std::filesystem::path outputPath{ outputFile.Path().c_str() };
+            const winrt::guid encoderId = EncoderIdForExtension(outputPath.extension().wstring());
+
+            co_await winrt::resume_background();
+
+            auto weakThis = get_weak();
+            auto reportProgress = [&](uint32_t progress)
+                {
+                    const double scaledProgress = static_cast<double>(progress) * 0.85;
+                    dispatcherQueue.TryEnqueue([weakThis, requestId, scaledProgress]()
+                        {
+                            if (auto self = weakThis.get())
+                            {
+                                if (requestId == self->m_saveRequestId)
+                                {
+                                    self->PreviewProgressBar().Value(scaledProgress);
+                                }
+                            }
+                        });
+                };
+
+            auto renderedPixels = RenderPixels(
+                sourcePixels,
+                pixelWidth,
+                pixelHeight,
+                selectedMode,
+                channelIndex,
+                showGrayscale,
+                reportProgress);
+
+            auto softwareBitmap = CreateSoftwareBitmapFromPixels(renderedPixels, pixelWidth, pixelHeight);
+
+            dispatcherQueue.TryEnqueue([weakThis, requestId]()
+                {
+                    if (auto self = weakThis.get())
+                    {
+                        if (requestId == self->m_saveRequestId)
+                        {
+                            self->PreviewProgressBar().Value(90.0);
+                        }
+                    }
+                });
+
+            auto stream = co_await outputFile.OpenAsync(Windows::Storage::FileAccessMode::ReadWrite);
+            auto encoder = co_await Windows::Graphics::Imaging::BitmapEncoder::CreateAsync(encoderId, stream);
+            encoder.SetSoftwareBitmap(softwareBitmap);
+
+            dispatcherQueue.TryEnqueue([weakThis, requestId]()
+                {
+                    if (auto self = weakThis.get())
+                    {
+                        if (requestId == self->m_saveRequestId)
+                        {
+                            self->PreviewProgressBar().Value(95.0);
+                        }
+                    }
+                });
+
+            co_await encoder.FlushAsync();
+            co_await stream.FlushAsync();
+
+            saveSucceeded = true;
+            resultMessage = FormatLocalizedString(L"SaveResult.SuccessMessageFormat", { outputFile.Path() });
+        }
+        catch (winrt::hresult_error const& error)
+        {
+            resultSeverity = Controls::InfoBarSeverity::Error;
+            resultTitle = LocalizedString(L"SaveResult.FailureTitle");
+            hstring message = error.message();
+            if (message.empty())
+            {
+                message = LocalizedString(L"SaveResult.FailureMessage");
+            }
+            resultMessage = message;
+        }
+        catch (...)
+        {
+            resultSeverity = Controls::InfoBarSeverity::Error;
+            resultTitle = LocalizedString(L"SaveResult.FailureTitle");
+            resultMessage = LocalizedString(L"SaveResult.FailureMessage");
+        }
+
+        co_await uiThread;
+
+        if (requestId != m_saveRequestId)
+        {
+            co_return;
+        }
+
+        if (saveSucceeded)
+        {
+            PreviewProgressBar().Value(100.0);
+        }
+
+        PreviewProgressHost().Visibility(Visibility::Collapsed);
+        m_isSaving = false;
+        UpdateCommandStates();
+        ShowSaveResultInfoBar(resultSeverity, resultTitle, resultMessage);
     }
 
     Windows::Foundation::IAsyncAction MainWindow::ShowAboutDialogAsync()
@@ -1013,6 +1468,7 @@ namespace winrt::image_channel_viewer::implementation
         UpdateGrayscaleControls(definition.supportsGrayscaleToggle);
 
         m_isUpdatingUi = false;
+        UpdateCommandStates();
     }
 
     void MainWindow::UpdateGrayscaleControls(bool supportsGrayscaleToggle)
@@ -1068,158 +1524,27 @@ namespace winrt::image_channel_viewer::implementation
             // below no longer runs on the UI thread.
             co_await winrt::resume_background();
 
-            ::image_channel_viewer::ContinuousPixelBuffer previewPixels(pixelWidth * 4, pixelWidth, pixelHeight);
-            auto const* sourceRed = sourcePixels.red_data();
-            auto const* sourceGreen = sourcePixels.green_data();
-            auto const* sourceBlue = sourcePixels.blue_data();
-            auto const* sourceAlpha = sourcePixels.alpha_data();
-            auto* previewRed = previewPixels.red_data();
-            auto* previewGreen = previewPixels.green_data();
-            auto* previewBlue = previewPixels.blue_data();
-            auto* previewAlpha = previewPixels.alpha_data();
-            const size_t pixelCount = sourcePixels.pixel_count();
-            // update progress for every 2^16 pixels processed, which is about 1/30 of a 1080p image
-            constexpr size_t progressChunkSize = 65536;
-            uint32_t lastReportedProgress = 0;
-            auto renderChunk = [&](auto renderer)
+            auto weakThis = get_weak();
+            auto previewPixels = RenderPixels(
+                sourcePixels,
+                pixelWidth,
+                pixelHeight,
+                selectedMode,
+                channelIndex,
+                showGrayscale,
+                [&](uint32_t progress)
                 {
-                    for (size_t beginPixelIndex = 0; beginPixelIndex < pixelCount; beginPixelIndex += progressChunkSize)
-                    {
-                        const size_t endPixelIndex = std::min(beginPixelIndex + progressChunkSize, pixelCount);
-                        renderer(beginPixelIndex, endPixelIndex);
-
-                        const uint32_t progress = static_cast<uint32_t>((endPixelIndex * 100) / pixelCount);
-                        if (progress != lastReportedProgress)
+                    dispatcherQueue.TryEnqueue([weakThis, requestId, progress]()
                         {
-                            lastReportedProgress = progress;
-                            auto weakThis = get_weak();
-                            dispatcherQueue.TryEnqueue([weakThis, requestId, progress]()
+                            if (auto self = weakThis.get())
+                            {
+                                if (requestId == self->m_previewRequestId)
                                 {
-                                    if (auto self = weakThis.get())
-                                    {
-                                        if (requestId == self->m_previewRequestId)
-                                        {
-                                            self->PreviewProgressBar().Value(progress);
-                                        }
-                                    }
-                                });
-                        }
-                    }
-                };
-
-#define RENDER_TEMPLATE_INSTANCE(modeValue, channelValue, grayscaleValue) \
-            renderChunk([&](size_t beginPixelIndex, size_t endPixelIndex) \
-                { \
-                    RenderPreviewWork<modeValue, channelValue, grayscaleValue>( \
-                        sourceRed, \
-                        sourceGreen, \
-                        sourceBlue, \
-                        sourceAlpha, \
-                        previewRed, \
-                        previewGreen, \
-                        previewBlue, \
-                        previewAlpha, \
-                        beginPixelIndex, \
-                        endPixelIndex); \
-                })
-
-#define RENDER_GRAYSCALE_VARIANT(modeValue, channelValue) \
-            if (showGrayscale) \
-            { \
-                RENDER_TEMPLATE_INSTANCE(modeValue, channelValue, true); \
-            } \
-            else \
-            { \
-                RENDER_TEMPLATE_INSTANCE(modeValue, channelValue, false); \
-            }
-
-            switch (selectedMode)
-            {
-            case ColorMode::Original:
-                RENDER_GRAYSCALE_VARIANT(ColorMode::Original, 0);
-                break;
-
-            case ColorMode::RGB:
-                switch (channelIndex)
-                {
-                case 0:
-                    RENDER_GRAYSCALE_VARIANT(ColorMode::RGB, 0);
-                    break;
-                case 1:
-                    RENDER_GRAYSCALE_VARIANT(ColorMode::RGB, 1);
-                    break;
-                default:
-                    RENDER_GRAYSCALE_VARIANT(ColorMode::RGB, 2);
-                    break;
-                }
-                break;
-
-            case ColorMode::HSL:
-                switch (channelIndex)
-                {
-                case 0:
-                    RENDER_GRAYSCALE_VARIANT(ColorMode::HSL, 0);
-                    break;
-                case 1:
-                    RENDER_GRAYSCALE_VARIANT(ColorMode::HSL, 1);
-                    break;
-                default:
-                    RENDER_GRAYSCALE_VARIANT(ColorMode::HSL, 2);
-                    break;
-                }
-                break;
-
-            case ColorMode::HSV:
-                switch (channelIndex)
-                {
-                case 0:
-                    RENDER_GRAYSCALE_VARIANT(ColorMode::HSV, 0);
-                    break;
-                case 1:
-                    RENDER_GRAYSCALE_VARIANT(ColorMode::HSV, 1);
-                    break;
-                default:
-                    RENDER_GRAYSCALE_VARIANT(ColorMode::HSV, 2);
-                    break;
-                }
-                break;
-
-            case ColorMode::CMYK:
-                switch (channelIndex)
-                {
-                case 0:
-                    RENDER_GRAYSCALE_VARIANT(ColorMode::CMYK, 0);
-                    break;
-                case 1:
-                    RENDER_GRAYSCALE_VARIANT(ColorMode::CMYK, 1);
-                    break;
-                case 2:
-                    RENDER_GRAYSCALE_VARIANT(ColorMode::CMYK, 2);
-                    break;
-                default:
-                    RENDER_GRAYSCALE_VARIANT(ColorMode::CMYK, 3);
-                    break;
-                }
-                break;
-
-            case ColorMode::LAB:
-                switch (channelIndex)
-                {
-                case 0:
-                    RENDER_GRAYSCALE_VARIANT(ColorMode::LAB, 0);
-                    break;
-                case 1:
-                    RENDER_GRAYSCALE_VARIANT(ColorMode::LAB, 1);
-                    break;
-                default:
-                    RENDER_GRAYSCALE_VARIANT(ColorMode::LAB, 2);
-                    break;
-                }
-                break;
-            }
-
-#undef RENDER_GRAYSCALE_VARIANT
-#undef RENDER_TEMPLATE_INSTANCE
+                                    self->PreviewProgressBar().Value(progress);
+                                }
+                            }
+                        });
+                });
 
             // switch back to UI thread
             // also see comment on "co_await winrt::resume_background();"
@@ -1275,6 +1600,85 @@ namespace winrt::image_channel_viewer::implementation
                     });
             }
         }
+    }
+
+    void MainWindow::UpdateCommandStates()
+    {
+        const bool hasImage = m_sourcePixels.has_value() && !m_sourcePixels->empty();
+        SaveAsButton().IsEnabled(hasImage && !m_isSaving);
+    }
+
+    void MainWindow::ShowSaveResultInfoBar(
+        Controls::InfoBarSeverity severity,
+        hstring const& title,
+        hstring const& message)
+    {
+        SaveResultInfoBar().IsOpen(false);
+        SaveResultInfoBar().Severity(severity);
+        SaveResultInfoBar().Title(title);
+        SaveResultInfoBar().Message(message);
+        SaveResultInfoBar().IsOpen(true);
+    }
+
+    hstring MainWindow::CurrentStatusText() const
+    {
+        if (m_selectedModeIndex >= m_modes.size())
+        {
+            return L"原图";
+        }
+
+        auto const& definition = m_modes.at(m_selectedModeIndex);
+        if (definition.mode == ColorMode::Original || m_selectedChannelIndex >= definition.channels.size())
+        {
+            return hstring{ definition.label };
+        }
+
+        return hstring{ definition.label } + hstring{ L" · " } + definition.channels.at(m_selectedChannelIndex);
+    }
+
+    hstring MainWindow::BuildSuggestedSaveFileName() const
+    {
+        std::filesystem::path sourcePath;
+        if (m_loadedFile)
+        {
+            sourcePath = std::filesystem::path{ m_loadedFile.Path().c_str() };
+        }
+        else if (!m_loadedFileName.empty())
+        {
+            sourcePath = std::filesystem::path{ m_loadedFileName.c_str() };
+        }
+
+        std::wstring baseName = sourcePath.stem().wstring();
+        std::wstring extension = sourcePath.extension().wstring();
+        if (baseName.empty())
+        {
+            baseName = ::LocalizedString(L"SaveDialog.DefaultFileBaseName").c_str();
+        }
+        if (!SaveFormatIndexForExtension(extension).has_value())
+        {
+            extension = L".png";
+        }
+
+        std::wstring modeLabel = ::LocalizedString(L"Mode.Original.Label").c_str();
+        std::wstring channelLabel = ::LocalizedString(L"Channel.Original.Label").c_str();
+        if (m_selectedModeIndex < m_modes.size())
+        {
+            auto const& definition = m_modes.at(m_selectedModeIndex);
+            modeLabel = definition.label;
+            if (m_selectedChannelIndex < definition.channels.size())
+            {
+                channelLabel = definition.channels.at(m_selectedChannelIndex).c_str();
+            }
+        }
+
+        std::wstring suggestedName = SanitizeFileComponent(baseName)
+            + L"-"
+            + SanitizeFileComponent(modeLabel)
+            + L"-"
+            + SanitizeFileComponent(channelLabel)
+            + extension;
+
+        return hstring{ suggestedName };
     }
 
     std::optional<ColorMode> MainWindow::SelectedMode()
