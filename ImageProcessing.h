@@ -35,6 +35,16 @@ namespace image_channel_viewer::image_processing
         LAB,
     };
 
+    struct RenderRequestSnapshot
+    {
+        ::image_channel_viewer::imaging::ContinuousPixelBuffer sourcePixels;
+        uint32_t pixelWidth;
+        uint32_t pixelHeight;
+        ColorMode selectedMode;
+        uint32_t channelIndex;
+        bool showGrayscale;
+    };
+
     winrt::Windows::Graphics::Imaging::SoftwareBitmap CreateSoftwareBitmapFromPixels(
         ::image_channel_viewer::imaging::ContinuousPixelBuffer& pixels,
         uint32_t pixelWidth,
@@ -517,24 +527,19 @@ namespace image_channel_viewer::image_processing
 
     template<typename ProgressCallback>
     ::image_channel_viewer::imaging::ContinuousPixelBuffer RenderPixels(
-        ::image_channel_viewer::imaging::ContinuousPixelBuffer const& sourcePixels,
-        uint32_t pixelWidth,
-        uint32_t pixelHeight,
-        ColorMode selectedMode,
-        uint32_t channelIndex,
-        bool showGrayscale,
+        RenderRequestSnapshot const& snapshot,
         ProgressCallback&& reportProgress)
     {
-        ::image_channel_viewer::imaging::ContinuousPixelBuffer previewPixels(pixelWidth * 4, pixelWidth, pixelHeight);
-        auto const* sourceRed = sourcePixels.red_data();
-        auto const* sourceGreen = sourcePixels.green_data();
-        auto const* sourceBlue = sourcePixels.blue_data();
-        auto const* sourceAlpha = sourcePixels.alpha_data();
+        ::image_channel_viewer::imaging::ContinuousPixelBuffer previewPixels(snapshot.pixelWidth * 4, snapshot.pixelWidth, snapshot.pixelHeight);
+        auto const* sourceRed = snapshot.sourcePixels.red_data();
+        auto const* sourceGreen = snapshot.sourcePixels.green_data();
+        auto const* sourceBlue = snapshot.sourcePixels.blue_data();
+        auto const* sourceAlpha = snapshot.sourcePixels.alpha_data();
         auto* previewRed = previewPixels.red_data();
         auto* previewGreen = previewPixels.green_data();
         auto* previewBlue = previewPixels.blue_data();
         auto* previewAlpha = previewPixels.alpha_data();
-        const size_t pixelCount = sourcePixels.pixel_count();
+        const size_t pixelCount = snapshot.sourcePixels.pixel_count();
 
         constexpr size_t progressChunkSize = 65536;
         uint32_t lastReportedProgress = 0;
@@ -571,7 +576,7 @@ namespace image_channel_viewer::image_processing
             })
 
 #define RENDER_GRAYSCALE_VARIANT(modeValue, channelValue) \
-        if (showGrayscale) \
+    if (snapshot.showGrayscale) \
         { \
             RENDER_TEMPLATE_INSTANCE(modeValue, channelValue, true); \
         } \
@@ -580,14 +585,21 @@ namespace image_channel_viewer::image_processing
             RENDER_TEMPLATE_INSTANCE(modeValue, channelValue, false); \
         }
 
-        switch (selectedMode)
+        switch (snapshot.selectedMode)
         {
         case ColorMode::Original:
-            RENDER_GRAYSCALE_VARIANT(ColorMode::Original, 0);
+            if (snapshot.showGrayscale)
+            {
+                RENDER_TEMPLATE_INSTANCE(ColorMode::Original, 0, true);
+            }
+            else
+            {
+                RENDER_TEMPLATE_INSTANCE(ColorMode::Original, 0, false);
+            }
             break;
 
         case ColorMode::RGB:
-            switch (channelIndex)
+            switch (snapshot.channelIndex)
             {
             case 0:
                 RENDER_GRAYSCALE_VARIANT(ColorMode::RGB, 0);
@@ -602,7 +614,7 @@ namespace image_channel_viewer::image_processing
             break;
 
         case ColorMode::HSL:
-            switch (channelIndex)
+            switch (snapshot.channelIndex)
             {
             case 0:
                 RENDER_GRAYSCALE_VARIANT(ColorMode::HSL, 0);
@@ -617,7 +629,7 @@ namespace image_channel_viewer::image_processing
             break;
 
         case ColorMode::HSV:
-            switch (channelIndex)
+            switch (snapshot.channelIndex)
             {
             case 0:
                 RENDER_GRAYSCALE_VARIANT(ColorMode::HSV, 0);
@@ -632,7 +644,7 @@ namespace image_channel_viewer::image_processing
             break;
 
         case ColorMode::CMYK:
-            switch (channelIndex)
+            switch (snapshot.channelIndex)
             {
             case 0:
                 RENDER_GRAYSCALE_VARIANT(ColorMode::CMYK, 0);
@@ -650,7 +662,7 @@ namespace image_channel_viewer::image_processing
             break;
 
         case ColorMode::LAB:
-            switch (channelIndex)
+            switch (snapshot.channelIndex)
             {
             case 0:
                 RENDER_GRAYSCALE_VARIANT(ColorMode::LAB, 0);

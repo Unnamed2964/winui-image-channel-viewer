@@ -391,15 +391,13 @@ namespace winrt::image_channel_viewer::implementation
                 };
 
             auto renderedPixels = RenderPixels(
-                snapshot.sourcePixels,
-                snapshot.pixelWidth,
-                snapshot.pixelHeight,
-                snapshot.selectedMode,
-                snapshot.channelIndex,
-                snapshot.showGrayscale,
+                snapshot.renderRequest,
                 reportProgress);
 
-            auto softwareBitmap = CreateSoftwareBitmapFromPixels(renderedPixels, snapshot.pixelWidth, snapshot.pixelHeight);
+            auto softwareBitmap = CreateSoftwareBitmapFromPixels(
+                renderedPixels,
+                snapshot.renderRequest.pixelWidth,
+                snapshot.renderRequest.pixelHeight);
 
             dispatcherQueue.TryEnqueue([weakThis, requestId]()
                 {
@@ -725,12 +723,7 @@ namespace winrt::image_channel_viewer::implementation
 
             auto weakThis = get_weak();
             auto previewPixels = RenderPixels(
-                snapshot.sourcePixels,
-                snapshot.pixelWidth,
-                snapshot.pixelHeight,
-                snapshot.selectedMode,
-                snapshot.channelIndex,
-                snapshot.showGrayscale,
+                snapshot.renderRequest,
                 [&](uint32_t progress)
                 {
                     dispatcherQueue.TryEnqueue([weakThis, requestId, progress]()
@@ -755,8 +748,8 @@ namespace winrt::image_channel_viewer::implementation
             }
 
             Microsoft::UI::Xaml::Media::Imaging::WriteableBitmap writeableBitmap(
-                static_cast<int32_t>(snapshot.pixelWidth),
-                static_cast<int32_t>(snapshot.pixelHeight));
+                static_cast<int32_t>(snapshot.renderRequest.pixelWidth),
+                static_cast<int32_t>(snapshot.renderRequest.pixelHeight));
 
             auto pixelBuffer = writeableBitmap.PixelBuffer();
             auto bufferByteAccess = pixelBuffer.as<IBufferByteAccess>();
@@ -772,7 +765,7 @@ namespace winrt::image_channel_viewer::implementation
             EmptyStatePanel().Visibility(Visibility::Collapsed);
             RestorePreviewView();
 
-            const hstring statusText = snapshot.selectedMode == ColorMode::Original
+            const hstring statusText = snapshot.renderRequest.selectedMode == ColorMode::Original
                 ? snapshot.modeLabel
                 : FormatLocalizedString(L"Window.Status.ModeChannelFormat", { snapshot.modeLabel, snapshot.channelLabel });
 
@@ -820,12 +813,14 @@ namespace winrt::image_channel_viewer::implementation
         }
 
         return RenderStateSnapshot{
-            definition.mode,
-            m_selectedChannelIndex,
-            m_showGrayscale,
-            m_pixelWidth,
-            m_pixelHeight,
-            *m_sourcePixels,
+            {
+                *m_sourcePixels,
+                m_pixelWidth,
+                m_pixelHeight,
+                definition.mode,
+                m_selectedChannelIndex,
+                m_showGrayscale,
+            },
             definition.label,
             definition.channels.at(m_selectedChannelIndex),
             m_loadedFileName,

@@ -34,12 +34,7 @@ namespace winrt::image_channel_viewer::implementation
 
         struct RenderStateSnapshot
         {
-            ColorMode selectedMode;
-            uint32_t channelIndex;
-            bool showGrayscale;
-            uint32_t pixelWidth;
-            uint32_t pixelHeight;
-            ::image_channel_viewer::imaging::ContinuousPixelBuffer sourcePixels;
+            ::image_channel_viewer::image_processing::RenderRequestSnapshot renderRequest;
             winrt::hstring modeLabel;
             winrt::hstring channelLabel;
             winrt::hstring loadedFileName;
