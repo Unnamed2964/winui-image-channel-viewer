@@ -4,14 +4,10 @@
 #include "LocalizationService.h"
 #include "MainWindow.xaml.h"
 #include "AppVersion.g.h"
-#include <shlwapi.h>
-
 
 #include <filesystem>
 #include <algorithm>
 #include <ranges>
-
-#pragma comment(lib, "shlwapi.lib")
 
 #if __has_include("MainWindow.g.cpp")
 #include "MainWindow.g.cpp"
