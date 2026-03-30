@@ -24,7 +24,6 @@ namespace
     using IMemoryBufferByteAccess = ::image_channel_viewer::image_processing::IMemoryBufferByteAccess;
     using ::image_channel_viewer::image_processing::CreateSoftwareBitmapFromPixels;
     using ::image_channel_viewer::image_processing::RenderPixels;
-    using ::image_channel_viewer::localization::FormatLocalizedString;
     using ::image_channel_viewer::localization::LocalizedString;
     using ::image_channel_viewer::localization::StoreLanguagePreference;
     using ::image_channel_viewer::localization::StoredLanguagePreference;
@@ -150,6 +149,14 @@ namespace winrt::image_channel_viewer::implementation
     {
         return ::image_channel_viewer::localization::LocalizedString(std::wstring_view{ resourceId.c_str() });
     }
+
+    winrt::hstring MainWindow::LocalizedString(winrt::hstring const& resourceId, std::initializer_list<winrt::hstring> arguments)
+    {
+        return ::image_channel_viewer::localization::LocalizedString(
+            std::wstring_view{ resourceId.c_str() },
+            arguments);
+    }
+
 
     void MainWindow::OnOpenImageClick(
         [[maybe_unused]] IInspectable const& sender, 
@@ -425,7 +432,7 @@ namespace winrt::image_channel_viewer::implementation
             co_await stream.FlushAsync();
 
             saveSucceeded = true;
-            resultMessage = FormatLocalizedString(L"SaveResult.SuccessMessageFormat", { outputFile.Path() });
+            resultMessage = LocalizedString(L"SaveResult.SuccessMessageFormat", { outputFile.Path() });
         }
         catch (winrt::hresult_error const& error)
         {
@@ -466,7 +473,7 @@ namespace winrt::image_channel_viewer::implementation
     Windows::Foundation::IAsyncAction MainWindow::ShowAboutDialogAsync()
     {
         Controls::ContentDialog dialog;
-        dialog.Title(box_value(FormatLocalizedString(L"About.DialogTitleFormat", { LocalizedString(L"Window.Title.AppName") })));
+        dialog.Title(box_value(LocalizedString(L"About.DialogTitleFormat", { LocalizedString(L"Window.Title.AppName") })));
         dialog.PrimaryButtonText(LocalizedString(L"Common.Close"));
         dialog.DefaultButton(Controls::ContentDialogButton::Primary);
         dialog.XamlRoot(Content().XamlRoot());
@@ -477,7 +484,7 @@ namespace winrt::image_channel_viewer::implementation
         contentPanel.Spacing(12);
 
         Microsoft::UI::Xaml::Controls::TextBlock versionText;
-        versionText.Text(FormatLocalizedString(L"About.VersionFormat", { hstring{ AppVersion } }));
+        versionText.Text(LocalizedString(L"About.VersionFormat", { hstring{ AppVersion } }));
         versionText.TextWrapping(TextWrapping::WrapWholeWords);
         contentPanel.Children().Append(versionText);
 
@@ -763,13 +770,13 @@ namespace winrt::image_channel_viewer::implementation
 
             const hstring statusText = snapshot.renderRequest.selectedMode == ColorMode::Original
                 ? snapshot.modeLabel
-                : FormatLocalizedString(L"Window.Status.ModeChannelFormat", { snapshot.modeLabel, snapshot.channelLabel });
+                : LocalizedString(L"Window.Status.ModeChannelFormat", { snapshot.modeLabel, snapshot.channelLabel });
 
             hstring windowTitle = snapshot.loadedFileName.empty()
                 ? LocalizedString(L"Window.Title.AppName")
                 : snapshot.loadedFileName;
 
-            Title(FormatLocalizedString(L"Window.Title.WithStatus", { windowTitle, statusText }));
+            Title(LocalizedString(L"Window.Title.WithStatus", { windowTitle, statusText }));
         }
         catch (...)
         {

@@ -13,6 +13,7 @@ namespace winrt::image_channel_viewer::implementation
         MainWindow();
 
         winrt::hstring LocalizedString(winrt::hstring const& resourceId);
+        winrt::hstring LocalizedString(winrt::hstring const& resourceId, std::initializer_list<winrt::hstring> arguments);
 
         void OnOpenImageClick(IInspectable const& sender, Microsoft::UI::Xaml::RoutedEventArgs const& args);
         void OnSettingsClick(IInspectable const& sender, Microsoft::UI::Xaml::RoutedEventArgs const& args);
