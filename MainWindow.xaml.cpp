@@ -317,17 +317,14 @@ namespace winrt::image_channel_viewer::implementation
         auto uiThread = winrt::apartment_context();
         auto dispatcherQueue = DispatcherQueue();
 
-        if (m_isSaving || !m_sourcePixels.has_value() || m_sourcePixels->empty() || m_pixelWidth == 0 || m_pixelHeight == 0)
+        auto renderState = CaptureRenderStateSnapshot();
+
+        if (m_isSaving || !renderState.has_value())
         {
             co_return;
         }
 
-        const auto selectedMode = SelectedMode().value_or(ColorMode::Original);
-        const auto channelIndex = SelectedchannelIndex().value_or(0);
-        const bool showGrayscale = m_showGrayscale;
-        const uint32_t pixelWidth = m_pixelWidth;
-        const uint32_t pixelHeight = m_pixelHeight;
-        auto sourcePixels = *m_sourcePixels;
+        auto const snapshot = std::move(renderState.value());
 
         std::wstring sourceExtension;
         if (m_loadedFile)
@@ -394,15 +391,15 @@ namespace winrt::image_channel_viewer::implementation
                 };
 
             auto renderedPixels = RenderPixels(
-                sourcePixels,
-                pixelWidth,
-                pixelHeight,
-                selectedMode,
-                channelIndex,
-                showGrayscale,
+                snapshot.sourcePixels,
+                snapshot.pixelWidth,
+                snapshot.pixelHeight,
+                snapshot.selectedMode,
+                snapshot.channelIndex,
+                snapshot.showGrayscale,
                 reportProgress);
 
-            auto softwareBitmap = CreateSoftwareBitmapFromPixels(renderedPixels, pixelWidth, pixelHeight);
+            auto softwareBitmap = CreateSoftwareBitmapFromPixels(renderedPixels, snapshot.pixelWidth, snapshot.pixelHeight);
 
             dispatcherQueue.TryEnqueue([weakThis, requestId]()
                 {
@@ -711,17 +708,14 @@ namespace winrt::image_channel_viewer::implementation
                 co_return;
             }
 
-            const auto selectedMode = SelectedMode().value_or(ColorMode::Original);
-            const auto channelIndex = SelectedchannelIndex().value_or(0);
-            const bool showGrayscale = m_showGrayscale;
-            const uint32_t pixelWidth = m_pixelWidth;
-            const uint32_t pixelHeight = m_pixelHeight;
-            const auto selectedModeIndex = m_selectedModeIndex;
-            const auto selectedChannelIndex = m_selectedChannelIndex;
-            const auto definition = m_modes.at(selectedModeIndex);
-            const auto channelLabel = definition.channels.at(std::min<uint32_t>(selectedChannelIndex, static_cast<uint32_t>(definition.channels.size() - 1)));
-            const auto loadedFileName = m_loadedFileName;
-            auto sourcePixels = *m_sourcePixels;
+            auto renderState = CaptureRenderStateSnapshot();
+            if (!renderState.has_value())
+            {
+                PreviewProgressHost().Visibility(Visibility::Collapsed);
+                co_return;
+            }
+
+            auto const snapshot = std::move(renderState.value());
 
             // resume_background schedules the coroutine continuation 
             // on a thread-pool thread. Unlike JavaScript await, this 
@@ -731,12 +725,12 @@ namespace winrt::image_channel_viewer::implementation
 
             auto weakThis = get_weak();
             auto previewPixels = RenderPixels(
-                sourcePixels,
-                pixelWidth,
-                pixelHeight,
-                selectedMode,
-                channelIndex,
-                showGrayscale,
+                snapshot.sourcePixels,
+                snapshot.pixelWidth,
+                snapshot.pixelHeight,
+                snapshot.selectedMode,
+                snapshot.channelIndex,
+                snapshot.showGrayscale,
                 [&](uint32_t progress)
                 {
                     dispatcherQueue.TryEnqueue([weakThis, requestId, progress]()
@@ -761,8 +755,8 @@ namespace winrt::image_channel_viewer::implementation
             }
 
             Microsoft::UI::Xaml::Media::Imaging::WriteableBitmap writeableBitmap(
-                static_cast<int32_t>(pixelWidth),
-                static_cast<int32_t>(pixelHeight));
+                static_cast<int32_t>(snapshot.pixelWidth),
+                static_cast<int32_t>(snapshot.pixelHeight));
 
             auto pixelBuffer = writeableBitmap.PixelBuffer();
             auto bufferByteAccess = pixelBuffer.as<IBufferByteAccess>();
@@ -778,13 +772,13 @@ namespace winrt::image_channel_viewer::implementation
             EmptyStatePanel().Visibility(Visibility::Collapsed);
             RestorePreviewView();
 
-            const hstring statusText = definition.mode == ColorMode::Original
-                ? definition.label
-                : FormatLocalizedString(L"Window.Status.ModeChannelFormat", { definition.label, channelLabel });
+            const hstring statusText = snapshot.selectedMode == ColorMode::Original
+                ? snapshot.modeLabel
+                : FormatLocalizedString(L"Window.Status.ModeChannelFormat", { snapshot.modeLabel, snapshot.channelLabel });
 
-            hstring windowTitle = loadedFileName.empty()
+            hstring windowTitle = snapshot.loadedFileName.empty()
                 ? LocalizedString(L"Window.Title.AppName")
-                : loadedFileName;
+                : snapshot.loadedFileName;
 
             Title(FormatLocalizedString(L"Window.Title.WithStatus", { windowTitle, statusText }));
         }
@@ -805,6 +799,37 @@ namespace winrt::image_channel_viewer::implementation
                     });
             }
         }
+    }
+
+    std::optional<MainWindow::RenderStateSnapshot> MainWindow::CaptureRenderStateSnapshot() const
+    {
+        if (!m_sourcePixels.has_value() || m_sourcePixels->empty() || m_pixelWidth == 0 || m_pixelHeight == 0)
+        {
+            return std::nullopt;
+        }
+
+        if (m_selectedModeIndex >= m_modes.size())
+        {
+            return std::nullopt;
+        }
+
+        auto const& definition = m_modes.at(m_selectedModeIndex);
+        if (m_selectedChannelIndex >= definition.channels.size())
+        {
+            return std::nullopt;
+        }
+
+        return RenderStateSnapshot{
+            definition.mode,
+            m_selectedChannelIndex,
+            m_showGrayscale,
+            m_pixelWidth,
+            m_pixelHeight,
+            *m_sourcePixels,
+            definition.label,
+            definition.channels.at(m_selectedChannelIndex),
+            m_loadedFileName,
+        };
     }
 
     void MainWindow::UpdateCommandStates()

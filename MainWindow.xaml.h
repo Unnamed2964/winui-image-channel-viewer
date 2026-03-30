@@ -32,6 +32,19 @@ namespace winrt::image_channel_viewer::implementation
             bool supportsGrayscaleToggle;
         };
 
+        struct RenderStateSnapshot
+        {
+            ColorMode selectedMode;
+            uint32_t channelIndex;
+            bool showGrayscale;
+            uint32_t pixelWidth;
+            uint32_t pixelHeight;
+            ::image_channel_viewer::imaging::ContinuousPixelBuffer sourcePixels;
+            winrt::hstring modeLabel;
+            winrt::hstring channelLabel;
+            winrt::hstring loadedFileName;
+        };
+
         winrt::Windows::Foundation::IAsyncAction LoadImageAsync();
         winrt::Windows::Foundation::IAsyncAction ShowSettingsDialogAsync();
         winrt::Windows::Foundation::IAsyncAction SaveCurrentViewAsync();
@@ -40,6 +53,7 @@ namespace winrt::image_channel_viewer::implementation
         void Populatechannels();
         void UpdateGrayscaleControls(bool supportsGrayscaleToggle);
         winrt::fire_and_forget RefreshPreview();
+        std::optional<RenderStateSnapshot> CaptureRenderStateSnapshot() const;
         std::optional<ColorMode> SelectedMode();
         std::optional<uint32_t> SelectedchannelIndex();
         float ComputeFitZoomFactor();
