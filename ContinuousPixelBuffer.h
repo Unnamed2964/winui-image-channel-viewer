@@ -78,7 +78,8 @@ namespace image_channel_viewer::imaging
                 if (!mapping.has_value())
                 {
                     // arbitrary out-of-range value to help identify bugs
-                    return static_cast<uint8_t>(2964 % 256); // = 148
+                    return mapping->channelIndex == 1 ? 0 : static_cast<uint8_t>(2964 % 256); 
+                    // to #940094
                 }
 
                 return ContinuousPixelBuffer::ToByte(ChannelData(mapping->channelIndex)[mapping->pixelIndex]);
