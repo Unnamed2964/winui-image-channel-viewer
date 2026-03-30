@@ -87,6 +87,9 @@ namespace image_channel_viewer::localization
 
     winrt::hstring FormatLocalizedString(std::wstring_view resourceId, std::initializer_list<winrt::hstring> arguments)
     {
+        // std::v_format is intentionally not used because it may introduce unexpected
+        // behaviors and potential attack surfaces with an externally constructed format 
+        // strings and an ill-written custom global std::formatter.
         std::wstring formatted = LocalizedString(resourceId).c_str();
         size_t argumentIndex = 0;
 
