@@ -28,6 +28,17 @@ namespace
     using ::image_channel_viewer::localization::StoreLanguagePreference;
     using ::image_channel_viewer::localization::StoredLanguagePreference;
 
+    constexpr std::array<std::wstring_view, 8> kSupportedImageExtensions{
+        L".png",
+        L".jpg",
+        L".jpeg",
+        L".bmp",
+        L".gif",
+        L".tif",
+        L".tiff",
+        L".webp",
+    };
+
     Controls::ComboBoxItem CreateLanguageOption(hstring const& label, hstring const& tag)
     {
         Controls::ComboBoxItem item;
@@ -54,6 +65,17 @@ namespace
     {
         std::transform(value.begin(), value.end(), value.begin(), ::towlower);
         return value;
+    }
+
+    bool IsSupportedImageExtension(std::wstring const& extension)
+    {
+        auto const normalized = ToLowerCopy(extension);
+        return std::ranges::contains(kSupportedImageExtensions, std::wstring_view{ normalized });
+    }
+
+    bool IsSupportedImageFile(winrt::Windows::Storage::StorageFile const& file)
+    {
+        return file && IsSupportedImageExtension(std::wstring{ file.FileType().c_str() });
     }
 
     std::optional<size_t> SaveFormatIndexForExtension(std::wstring const& extension)
@@ -259,12 +281,32 @@ namespace winrt::image_channel_viewer::implementation
         m_savedZoomFactor = PreviewScrollViewer().ZoomFactor();
     }
 
+    void MainWindow::OnWindowDragOver(
+        [[maybe_unused]] IInspectable const& sender,
+        Microsoft::UI::Xaml::DragEventArgs const& args)
+    {
+        if (args.DataView().Contains(Windows::ApplicationModel::DataTransfer::StandardDataFormats::StorageItems()))
+        {
+            args.AcceptedOperation(Windows::ApplicationModel::DataTransfer::DataPackageOperation::Copy);
+            return;
+        }
+
+        args.AcceptedOperation(Windows::ApplicationModel::DataTransfer::DataPackageOperation::None);
+    }
+
+    void MainWindow::OnWindowDrop(
+        [[maybe_unused]] IInspectable const& sender,
+        Microsoft::UI::Xaml::DragEventArgs const& args)
+    {
+        HandleDropAsync(args);
+    }
+
     Windows::Foundation::IAsyncAction MainWindow::LoadImageAsync()
     {
         Windows::Storage::Pickers::FileOpenPicker picker;
         picker.ViewMode(Windows::Storage::Pickers::PickerViewMode::Thumbnail);
         picker.SuggestedStartLocation(Windows::Storage::Pickers::PickerLocationId::PicturesLibrary);
-        for(auto extension : { L".png", L".jpg", L".jpeg", L".bmp", L".gif", L".tif", L".tiff", L".webp" })
+        for (auto extension : kSupportedImageExtensions)
         {
             picker.FileTypeFilter().Append(extension);
         }
@@ -278,6 +320,11 @@ namespace winrt::image_channel_viewer::implementation
             co_return;
         }
 
+        co_await LoadImageFileAsync(file);
+    }
+
+    Windows::Foundation::IAsyncAction MainWindow::LoadImageFileAsync(Windows::Storage::StorageFile const& file)
+    {
         auto stream = co_await file.OpenAsync(Windows::Storage::FileAccessMode::Read);
         auto decoder = co_await Windows::Graphics::Imaging::BitmapDecoder::CreateAsync(stream);
         auto decodedBitmap = co_await decoder.GetSoftwareBitmapAsync();
@@ -308,10 +355,78 @@ namespace winrt::image_channel_viewer::implementation
         m_fitPreviewOnNextRefresh = true;
         m_savedHorizontalOffset = 0.0f;
         m_savedVerticalOffset = 0.0f;
-        SaveResultInfoBar().IsOpen(false);
+        ActionResultInfoBar().IsOpen(false);
         EmptyStatePanel().Visibility(Visibility::Collapsed);
         UpdateCommandStates();
         RefreshPreview();
+    }
+
+    winrt::fire_and_forget MainWindow::HandleDropAsync(Microsoft::UI::Xaml::DragEventArgs args)
+    {
+        auto lifetime = get_strong();
+        auto deferral = args.GetDeferral();
+
+        try
+        {
+            auto const dataView = args.DataView();
+            if (!dataView.Contains(Windows::ApplicationModel::DataTransfer::StandardDataFormats::StorageItems()))
+            {
+                args.AcceptedOperation(Windows::ApplicationModel::DataTransfer::DataPackageOperation::None);
+            }
+            else
+            {
+                auto const items = co_await dataView.GetStorageItemsAsync();
+
+                Windows::Storage::StorageFile fileToLoad{ nullptr };
+                // use last item that is a supported image file, in case multiple items are dropped
+                for (auto const& item : items)
+                {
+                    auto const file = item.try_as<Windows::Storage::StorageFile>();
+                    if (IsSupportedImageFile(file))
+                    {
+                        fileToLoad = file;
+                        break;
+                    }
+                }
+
+                if (fileToLoad)
+                {
+                    args.AcceptedOperation(Windows::ApplicationModel::DataTransfer::DataPackageOperation::Copy);
+                    ActionResultInfoBar().IsOpen(false);
+                    co_await LoadImageFileAsync(fileToLoad);
+                }
+                else
+                {
+                    args.AcceptedOperation(Windows::ApplicationModel::DataTransfer::DataPackageOperation::None);
+                    ShowActionResultInfoBar(
+                        Controls::InfoBarSeverity::Error,
+                        LocalizedString(L"OpenResult.FailureTitle"),
+                        LocalizedString(L"OpenResult.UnsupportedFileMessage"));
+                }
+            }
+        }
+        catch (winrt::hresult_error const& error)
+        {
+            hstring message = error.message();
+            if (message.empty())
+            {
+                message = LocalizedString(L"OpenResult.FailureMessage");
+            }
+
+            ShowActionResultInfoBar(
+                Controls::InfoBarSeverity::Error,
+                LocalizedString(L"OpenResult.FailureTitle"),
+                message);
+        }
+        catch (...)
+        {
+            ShowActionResultInfoBar(
+                Controls::InfoBarSeverity::Error,
+                LocalizedString(L"OpenResult.FailureTitle"),
+                LocalizedString(L"OpenResult.FailureMessage"));
+        }
+
+        deferral.Complete();
     }
 
     Windows::Foundation::IAsyncAction MainWindow::SaveCurrentViewAsync()
@@ -360,7 +475,7 @@ namespace winrt::image_channel_viewer::implementation
         const uint64_t requestId = ++m_saveRequestId;
         m_isSaving = true;
         UpdateCommandStates();
-        SaveResultInfoBar().IsOpen(false);
+        ActionResultInfoBar().IsOpen(false);
         PreviewProgressBar().IsIndeterminate(false);
         PreviewProgressBar().Value(0.0);
         PreviewProgressHost().Visibility(Visibility::Visible);
@@ -467,7 +582,7 @@ namespace winrt::image_channel_viewer::implementation
         PreviewProgressHost().Visibility(Visibility::Collapsed);
         m_isSaving = false;
         UpdateCommandStates();
-        ShowSaveResultInfoBar(resultSeverity, resultTitle, resultMessage);
+        ShowActionResultInfoBar(resultSeverity, resultTitle, resultMessage);
     }
 
     Windows::Foundation::IAsyncAction MainWindow::ShowAboutDialogAsync()
@@ -836,16 +951,16 @@ namespace winrt::image_channel_viewer::implementation
         SaveAsButton().IsEnabled(hasImage && !m_isSaving);
     }
 
-    void MainWindow::ShowSaveResultInfoBar(
+    void MainWindow::ShowActionResultInfoBar(
         Controls::InfoBarSeverity severity,
         hstring const& title,
         hstring const& message)
     {
-        SaveResultInfoBar().IsOpen(false);
-        SaveResultInfoBar().Severity(severity);
-        SaveResultInfoBar().Title(title);
-        SaveResultInfoBar().Message(message);
-        SaveResultInfoBar().IsOpen(true);
+        ActionResultInfoBar().IsOpen(false);
+        ActionResultInfoBar().Severity(severity);
+        ActionResultInfoBar().Title(title);
+        ActionResultInfoBar().Message(message);
+        ActionResultInfoBar().IsOpen(true);
     }
 
     hstring MainWindow::CurrentStatusText() const

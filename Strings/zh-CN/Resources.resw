@@ -37,7 +37,7 @@
     <value>尚未载入图片</value>
   </data>
   <data name="EmptyStateDescription.Text" xml:space="preserve">
-    <value>选择图片后，可切换原图、RGB、HSL、HSV、CMYK、LAB 等模式查看不同分量。</value>
+    <value>选择图片或直接拖入窗口后，可切换原图、RGB、HSL、HSV、CMYK、LAB 等模式查看不同分量。</value>
   </data>
   <data name="Common.Close" xml:space="preserve">
     <value>关闭</value>
@@ -113,6 +113,15 @@
   </data>
   <data name="SaveResult.FailureMessage" xml:space="preserve">
     <value>另存为失败，请重试。</value>
+  </data>
+  <data name="OpenResult.FailureTitle" xml:space="preserve">
+    <value>打开失败</value>
+  </data>
+  <data name="OpenResult.FailureMessage" xml:space="preserve">
+    <value>打开图片失败，请尝试其他文件。</value>
+  </data>
+  <data name="OpenResult.UnsupportedFileMessage" xml:space="preserve">
+    <value>仅支持将图片文件拖入窗口。</value>
   </data>
   <data name="About.DialogTitleFormat" xml:space="preserve">
     <value>关于 {0}</value>

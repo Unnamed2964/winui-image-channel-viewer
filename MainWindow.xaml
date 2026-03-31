@@ -13,7 +13,10 @@
         <MicaBackdrop/>
     </Window.SystemBackdrop>
 
-    <Grid>
+    <Grid
+        AllowDrop="True"
+        DragOver="OnWindowDragOver"
+        Drop="OnWindowDrop">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -161,7 +164,7 @@
                 </Border>
 
                 <InfoBar
-                    x:Name="SaveResultInfoBar"
+                    x:Name="ActionResultInfoBar"
                     Width="360"
                     Margin="16"
                     HorizontalAlignment="Right"
