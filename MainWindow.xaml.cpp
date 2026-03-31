@@ -603,13 +603,13 @@ namespace winrt::image_channel_viewer::implementation
         }
 
         Controls::ContentDialog restartDialog;
-        restartDialog.Title(box_value(LocalizedString(L"Settings.RestartDialog.Title")));
-        restartDialog.CloseButtonText(LocalizedString(L"Common.Close"));
+        restartDialog.Title(box_value(::image_channel_viewer::localization::EffectiveLocalizedString(L"Settings.RestartDialog.Title")));
+        restartDialog.CloseButtonText(::image_channel_viewer::localization::EffectiveLocalizedString(L"Common.Close"));
         restartDialog.DefaultButton(Controls::ContentDialogButton::Close);
         restartDialog.XamlRoot(Content().XamlRoot());
 
         Controls::TextBlock restartMessage;
-        restartMessage.Text(LocalizedString(L"Settings.RestartDialog.Message"));
+        restartMessage.Text(::image_channel_viewer::localization::EffectiveLocalizedString(L"Settings.RestartDialog.Message"));
         restartMessage.TextWrapping(TextWrapping::WrapWholeWords);
         restartDialog.Content(restartMessage);
 

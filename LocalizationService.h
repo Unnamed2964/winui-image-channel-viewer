@@ -7,8 +7,11 @@
 
 namespace image_channel_viewer::localization
 {
+    void InitializeRuntimeLanguage();
     winrt::hstring LocalizedString(std::wstring_view resourceId);
     winrt::hstring LocalizedString(std::wstring_view resourceId, std::initializer_list<winrt::hstring> arguments);
+    winrt::hstring EffectiveLocalizedString(std::wstring_view resourceId);
+    winrt::hstring EffectiveLocalizedString(std::wstring_view resourceId, std::initializer_list<winrt::hstring> arguments);
     winrt::hstring StoredLanguagePreference();
     void StoreLanguagePreference(winrt::hstring const& languageTag);
 }

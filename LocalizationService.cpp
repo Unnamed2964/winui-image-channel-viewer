@@ -44,10 +44,15 @@ namespace
         return {};
     }
 
-    winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceContext CreateResourceContext()
+    hstring const& RuntimeLanguageOverrideTag()
+    {
+        static hstring runtimeLanguage = EffectiveLanguageOverrideTag();
+        return runtimeLanguage;
+    }
+
+    winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceContext CreateResourceContext(hstring const& languageTag)
     {
         auto context = AppResourceManager().CreateResourceContext();
-        auto const languageTag = EffectiveLanguageOverrideTag();
         if (!languageTag.empty())
         {
             context.QualifierValues().Insert(KnownResourceQualifierName::Language(), languageTag);
@@ -55,42 +60,46 @@ namespace
 
         return context;
     }
-}
 
-namespace image_channel_viewer::localization
-{
-    winrt::hstring LocalizedString(std::wstring_view resourceId)
+    winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceContext CreateRuntimeResourceContext()
     {
-        try
-        {
-            std::wstring normalizedResourceId{ resourceId };
-            std::replace(normalizedResourceId.begin(), normalizedResourceId.end(), L'.', L'/');
-
-            auto const context = CreateResourceContext();
-            auto const candidate = AppResourceMap().TryGetValue(hstring{ normalizedResourceId }, context);
-            if (candidate)
-            {
-                hstring const value = candidate.ValueAsString();
-                if (!value.empty())
-                {
-                    return value;
-                }
-            }
-
-            return hstring{ resourceId };
-        }
-        catch (...)
-        {
-            return hstring{ resourceId };
-        }
+        return CreateResourceContext(RuntimeLanguageOverrideTag());
     }
 
-    winrt::hstring LocalizedString(std::wstring_view resourceId, std::initializer_list<winrt::hstring> arguments)
+    winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceContext CreateEffectiveResourceContext()
+    {
+        return CreateResourceContext(EffectiveLanguageOverrideTag());
+    }
+
+    winrt::hstring LocalizedStringCore(
+        std::wstring_view resourceId,
+        winrt::Microsoft::Windows::ApplicationModel::Resources::ResourceContext const& context)
+    {
+        std::wstring normalizedResourceId{ resourceId };
+        std::replace(normalizedResourceId.begin(), normalizedResourceId.end(), L'.', L'/');
+
+        auto const candidate = AppResourceMap().TryGetValue(hstring{ normalizedResourceId }, context);
+        if (candidate)
+        {
+            hstring const value = candidate.ValueAsString();
+            if (!value.empty())
+            {
+                return value;
+            }
+        }
+
+        return hstring{ resourceId };
+    }
+
+    winrt::hstring FormatLocalizedStringCore(
+        winrt::hstring const& formatString,
+        std::initializer_list<winrt::hstring> arguments)
     {
         // std::v_format is intentionally not used because it may introduce unexpected
         // behaviors and potential attack surfaces with an externally constructed format 
         // strings and an ill-written custom global std::formatter.
-        std::wstring formatted = LocalizedString(resourceId).c_str();
+        
+        std::wstring formatted = formatString.c_str();
         size_t argumentIndex = 0;
 
         for (auto const& argument : arguments)
@@ -108,6 +117,48 @@ namespace image_channel_viewer::localization
         }
 
         return hstring{ formatted };
+    }
+}
+
+namespace image_channel_viewer::localization
+{
+    void InitializeRuntimeLanguage()
+    {
+        (void)RuntimeLanguageOverrideTag();
+    }
+
+    winrt::hstring LocalizedString(std::wstring_view resourceId)
+    {
+        try
+        {
+            return LocalizedStringCore(resourceId, CreateRuntimeResourceContext());
+        }
+        catch (...)
+        {
+            return hstring{ resourceId };
+        }
+    }
+
+    winrt::hstring LocalizedString(std::wstring_view resourceId, std::initializer_list<winrt::hstring> arguments)
+    {
+        return FormatLocalizedStringCore(LocalizedString(resourceId), arguments);
+    }
+
+    winrt::hstring EffectiveLocalizedString(std::wstring_view resourceId)
+    {
+        try
+        {
+            return LocalizedStringCore(resourceId, CreateEffectiveResourceContext());
+        }
+        catch (...)
+        {
+            return hstring{ resourceId };
+        }
+    }
+
+    winrt::hstring EffectiveLocalizedString(std::wstring_view resourceId, std::initializer_list<winrt::hstring> arguments)
+    {
+        return FormatLocalizedStringCore(EffectiveLocalizedString(resourceId), arguments);
     }
 
     winrt::hstring StoredLanguagePreference()

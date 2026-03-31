@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "App.xaml.h"
+#include "LocalizationService.h"
 #include "MainWindow.xaml.h"
 
 using namespace winrt;
@@ -23,6 +24,7 @@ namespace winrt::image_channel_viewer::implementation
 
     void App::OnLaunched([[maybe_unused]] LaunchActivatedEventArgs const& launchArgs)
     {
+        ::image_channel_viewer::localization::InitializeRuntimeLanguage();
         m_window = make<MainWindow>();
         m_window.Activate();
     }
