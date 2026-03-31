@@ -4,6 +4,8 @@
 
 本项目是一个基于 Modern C++ (>= C++20) + C++/WinRT + WinUI 3 的图片通道查看器，现代 Windows 11 风格，采用 Mica 效果的桌面应用。
 
+***C++ 不一定是这类项目的最佳选择，但是为了能够温习 C++，决定维护一个 C++ 项目。***
+
 **下载：** [Releases · Unnamed2964/winui-image-channel-viewer](https://github.com/Unnamed2964/winui-image-channel-viewer/releases)
 
 ## 运行截图
