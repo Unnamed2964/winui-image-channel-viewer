@@ -1,5 +1,7 @@
 # 图片通道查看器
 
+[![GitHub Release](https://img.shields.io/github/v/release/Unnamed2964/winui-image-channel-viewer?display_name=tag)](https://github.com/Unnamed2964/winui-image-channel-viewer/releases) [![License: MIT](https://img.shields.io/github/license/Unnamed2964/winui-image-channel-viewer)](https://github.com/Unnamed2964/winui-image-channel-viewer/blob/master/LICENSE) ![Platform](https://img.shields.io/badge/platform-Windows%2011%2B-0078D6) ![C++](https://img.shields.io/badge/C%2B%2B-23-00599C) ![UI](https://img.shields.io/badge/UI-WinUI%203-0a7cff)
+
 一个基于 Modern C++、C++/WinRT 和 WinUI 3 的 Windows 桌面应用，用来查看图片在不同颜色空间下的单独通道。
 
 它提供接近图像编辑软件中单通道预览的体验，但把范围扩展到了 RGB、HSL、HSV、CMYK 和 LAB 等颜色空间，并采用贴近 Windows 11 的界面风格与 Mica 背景效果。
