@@ -23,6 +23,8 @@ namespace winrt::image_channel_viewer::implementation
         void OnchannelItemClick(IInspectable const& sender, Microsoft::UI::Xaml::RoutedEventArgs const& args);
         void OnGrayscaleItemClick(IInspectable const& sender, Microsoft::UI::Xaml::RoutedEventArgs const& args);
         void OnPreviewViewChanged(IInspectable const& sender, Microsoft::UI::Xaml::Controls::ScrollViewerViewChangedEventArgs const& args);
+        void OnWindowDragOver(IInspectable const& sender, Microsoft::UI::Xaml::DragEventArgs const& args);
+        void OnWindowDrop(IInspectable const& sender, Microsoft::UI::Xaml::DragEventArgs const& args);
 
     private:
         struct ModeDefinition
@@ -42,9 +44,11 @@ namespace winrt::image_channel_viewer::implementation
         };
 
         winrt::Windows::Foundation::IAsyncAction LoadImageAsync();
+        winrt::Windows::Foundation::IAsyncAction LoadImageFileAsync(winrt::Windows::Storage::StorageFile const& file);
         winrt::Windows::Foundation::IAsyncAction ShowSettingsDialogAsync();
         winrt::Windows::Foundation::IAsyncAction SaveCurrentViewAsync();
         winrt::Windows::Foundation::IAsyncAction ShowAboutDialogAsync();
+        winrt::fire_and_forget HandleDropAsync(Microsoft::UI::Xaml::DragEventArgs args);
         void InitializeModes();
         void Populatechannels();
         void UpdateGrayscaleControls(bool supportsGrayscaleToggle);
@@ -55,7 +59,7 @@ namespace winrt::image_channel_viewer::implementation
         float ComputeFitZoomFactor();
         void RestorePreviewView();
         void UpdateCommandStates();
-        void ShowSaveResultInfoBar(Microsoft::UI::Xaml::Controls::InfoBarSeverity severity, winrt::hstring const& title, winrt::hstring const& message);
+        void ShowActionResultInfoBar(Microsoft::UI::Xaml::Controls::InfoBarSeverity severity, winrt::hstring const& title, winrt::hstring const& message);
         winrt::hstring CurrentStatusText() const;
         winrt::hstring BuildSuggestedSaveFileName() const;
         HWND WindowHandle() const;
