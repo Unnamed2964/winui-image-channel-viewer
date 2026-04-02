@@ -8,7 +8,10 @@
 
 ## 运行截图
 
-<img width="1069" height="660" alt="screenshot-resized" src="https://github.com/user-attachments/assets/0cfae48a-8047-4ab8-9dd6-3a4471cf3a96" />
+![App in Light Mode](https://github.com/user-attachments/assets/8adf4e4e-e35e-4c25-b694-b40bd05201ed)
+![viewing CMYK C channel](https://github.com/user-attachments/assets/797d4e85-cb41-4cd4-a5be-a9daff328a97)
+![switch language](https://github.com/user-attachments/assets/7b99e3df-1263-464c-982f-eca6bb71c48f)
+![App in Dark Mode](https://github.com/user-attachments/assets/f3faedce-025f-42b8-9bbf-6a137a8fe468)
 
 ## 功能
 
